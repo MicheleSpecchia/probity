@@ -1,0 +1,147 @@
+# Guardrails
+
+## As-of time (mandatory)
+- For any decision timestamp `t`, use only information available as of that moment.
+- News records must satisfy both constraints:
+  - `published_at <= t`
+  - `ingested_at <= t + epsilon`
+- Any violation triggers `no_trade` with `leak` reason.
+
+## As-of query rules
+- Always anchor filtering to a `runs` row (`decision_ts`, `ingest_epsilon_seconds`).
+- For market-event tables (`trades`, `orderbook_snapshots`, `candles`):
+  - `event_ts <= decision_ts`
+  - `ingested_at <= decision_ts + epsilon`
+- For news tables (`articles`, claim evidence sourced from articles):
+  - `published_at <= decision_ts`
+  - `ingested_at <= decision_ts + epsilon`
+- Canonical SQL predicate pattern:
+  ```sql
+  <event_or_published_col> <= r.decision_ts
+  AND ingested_at <= (r.decision_ts + make_interval(secs => r.ingest_epsilon_seconds))
+  ```
+- This contract is smoke-tested in `tests/test_asof_contract.py`.
+- Catalog ingestion note:
+  - Gamma catalog refresh stores ingestion metadata (`audit.ingested_at`)
+    at write time for auditability.
+  - CLOB REST ingestion stores a single run-level `ingested_at` timestamp
+    across `orderbook_snapshots`, `trades`, and `candles`.
+  - As-of eligibility is still decided downstream with `decision_ts + epsilon`
+    filters in backtest/forecast selection.
+
+## CLOB ingestion semantics
+- `--since-ts` is inclusive and normalized to UTC before filtering:
+  - trades: keep `event_ts >= since_ts`
+  - candles: keep `start_ts >= since_ts`
+- Orderbook snapshot timestamp policy:
+  - if CLOB payload has a parseable timestamp, use it as `event_ts`
+  - otherwise fallback to run ingestion timestamp (`run_ingested_at`)
+    so snapshots remain auditable and replayable.
+- Orderbook normalization must be deterministic:
+  - bids sorted by `price DESC`
+  - asks sorted by `price ASC`
+  - price/size quantized to 8 decimals
+  - optional deterministic depth cap (`CLOB_ORDERBOOK_DEPTH`)
+- Trade identity fallback:
+  - if upstream `seq` and hash/id are both missing, derive
+    deterministic `trade_hash` with SHA-256 from canonical trade fields
+    (`token_id`, `event_ts`, `price`, `size`, `side`, optional stable extras).
+- WSS + reconcile policy:
+  - WSS stream is best-effort (can drop/out-of-order messages).
+  - REST is the source of truth for reconciliation windows.
+  - `supports_seq` definition:
+    - `supports_seq = true` when protocol evidence shows any seq-like field
+      (`seq`, `sequence`, `offset`) in observed WSS messages.
+    - Evidence is derived from both:
+      - offline fixtures (`tests/fixtures/wss/*.json`)
+      - manual probe output (`scripts/wss_probe.py`)
+    - Current repository expectation:
+      `supports_seq = true` for shipped fixtures.
+  - Gap detection strategy:
+    - seq-based when `supports_seq = true` and `CLOB_WSS_SEQ_FIELD` is set
+      (default `seq`):
+      gap if `seq != last_seq + 1`.
+    - heuristic when `supports_seq = false` or `CLOB_WSS_SEQ_FIELD` is empty:
+      gap if stream becomes stale (`now - last_trade_ts > CLOB_RECONCILE_GAP_SECONDS`);
+      if no stream timestamp exists, reconcile still runs every tick.
+  - Mismatch strategy:
+    - compute mid divergence in bps between stream and REST snapshots;
+      mismatch when divergence exceeds `CLOB_RECONCILE_MISMATCH_BPS`.
+  - Per-token state tracked and logged monotonically:
+    - `last_seq`
+    - `last_trade_ts`
+    - `last_book_ts`
+    - `last_reconcile_ts`
+  - Reconciler emits structured audit logs for:
+    - `reconcile_gap` (missing sequence / timestamp regression)
+    - `reconcile_mismatch` (top-of-book mismatch)
+    - `wss_reconnect` (disconnect/retry lifecycle)
+  - Gap/mismatch audit payload includes:
+    - `action_taken`
+    - `window_start`
+    - `window_end`
+    - `rest_calls`
+    - `rows_upserted`
+  - Probe command (manual, no DB writes):
+    - `python scripts/wss_probe.py --token-ids tokenA,tokenB --max-messages 200`
+    - `--out tmp/wss_probe.jsonl`
+  - Fixture refresh workflow:
+    - capture probe output in JSONL
+    - redact sensitive values preserving structure
+    - export 3-5 representative messages into `tests/fixtures/wss/*.json`
+    - re-run protocol fixture test to validate `supports_seq`
+      and update expected value if protocol support changes.
+  - Repair actions must remain idempotent via existing upsert keys.
+
+## Timestamp naming conventions
+- `event_ts`: when the market event happened externally (trade, book snapshot, candle start).
+- `published_at`: when a news article was published externally.
+- `ingested_at`: when data entered PMX ingestion/storage.
+- `decision_ts`: run decision timestamp in `runs`.
+- `asof_ts`: materialized feature snapshot timestamp for model input bundles.
+
+## Anti-leak controls
+- Do not join or aggregate on fields that include post-`t` information.
+- Keep event-time filters explicit in queries and feature jobs.
+- Store `asof_ts` in every run artifact for audit replay.
+
+## Anti-echo controls
+- Claim graph deduplication is mandatory before scoring evidence.
+- Penalize repeated claims from correlated outlets.
+- Enforce minimum source diversity from primary sources whenever available.
+
+## Idempotency
+- Jobs must expose a deterministic idempotency key boundary.
+- Re-running the same job with identical config and as-of inputs
+  must not create duplicate side effects.
+- Persist idempotency decisions in audit logs.
+- Gamma catalog refresh upserts by natural keys:
+  - `markets.market_id`
+  - `market_tokens (market_id, outcome)` with `unique(token_id)` enforcement
+- If `token_id` is already owned by another market, log a data-quality
+  issue and continue the run without crashing.
+- CLOB REST ingestion upserts by market-data natural keys:
+  - `orderbook_snapshots (token_id, event_ts)`
+  - `trades` via `trades_idempotency_uk` (`token_id`, `event_ts`, `seq_norm`, `trade_hash_norm`)
+  - `candles (token_id, interval, start_ts)`
+
+## Audit raw payload
+- Catalog ingestion persists raw Gamma payload alongside rule parser output
+  in `markets.rule_parse_json` with `audit.ingested_at`.
+- Until a dedicated raw-ingestion table is introduced, `rule_parse_json` is a
+  temporary container for both parser stub output and audit payload under the
+  `audit.*` namespace.
+- This provides a reproducible input snapshot for catalog-level audits,
+  even before dedicated raw ingestion tables are introduced.
+
+## Determinism
+- Configuration hashing must be deterministic (stable canonical serialization).
+- Randomness must be seeded or explicitly represented in run metadata.
+- Tests must avoid hidden real-time dependencies (freeze/mocked clock or explicit timestamps).
+
+## Audit bundle (high level)
+Each forecast output is expected to include:
+- Calibrated probability (`p_cal`) and 50/90 intervals.
+- Driver summary and resolution-aware evidence checklist.
+- No-trade flags with rationale.
+- Reproducibility metadata (`run_id`, `code_version`, `config_hash`, input snapshot references).

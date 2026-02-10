@@ -1,0 +1,17 @@
+{
+  "trades": [
+    {
+      "timestamp": "2026-01-01T00:00:01Z",
+      "price": "0.5",
+      "size": "10",
+      "side": "bid",
+      "hash": "trade-hash-1",
+      "sequence": 7
+    },
+    {
+      "timestamp": "invalid",
+      "price": "x",
+      "size": "1"
+    }
+  ]
+}

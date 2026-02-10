@@ -1,0 +1,11 @@
+{
+  "type": "trade",
+  "channel": "trades",
+  "data": {
+    "token_id": "token-A",
+    "seq": 101,
+    "timestamp": "2026-02-10T00:00:01Z",
+    "price": "0.51000000",
+    "size": "12.00000000"
+  }
+}

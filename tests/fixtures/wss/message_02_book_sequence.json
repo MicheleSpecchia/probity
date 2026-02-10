@@ -1,0 +1,20 @@
+{
+  "event": "book_update",
+  "data": {
+    "token_id": "token-A",
+    "sequence": 202,
+    "timestamp": "2026-02-10T00:00:02Z",
+    "bids": [
+      {
+        "price": "0.50000000",
+        "size": "8.00000000"
+      }
+    ],
+    "asks": [
+      {
+        "price": "0.52000000",
+        "size": "9.00000000"
+      }
+    ]
+  }
+}

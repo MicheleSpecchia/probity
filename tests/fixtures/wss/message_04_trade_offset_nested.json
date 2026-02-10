@@ -1,0 +1,15 @@
+{
+  "channel": "market",
+  "items": [
+    {
+      "type": "trade",
+      "payload": {
+        "token_id": "token-B",
+        "offset": 303,
+        "event_ts": "2026-02-10T00:00:04Z",
+        "price": "0.49000000",
+        "size": "3.00000000"
+      }
+    }
+  ]
+}

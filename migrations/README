@@ -1,0 +1,4 @@
+Single-database Alembic scaffold.
+
+This milestone only bootstraps migration infrastructure.
+Schema revisions will be introduced in the next PR.

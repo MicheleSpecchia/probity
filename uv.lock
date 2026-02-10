@@ -1,0 +1,4 @@
+# Placeholder lockfile.
+# Generate/refresh with:
+#   uv lock
+# This repository is scaffolded for uv workflows even when uv is not available locally.
