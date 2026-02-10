@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import sys
 
-
 CHECKS = [
     ("ruff format", ["ruff", "format", "--check", "."]),
     ("ruff lint", ["ruff", "check", "."]),

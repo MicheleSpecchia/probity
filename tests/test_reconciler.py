@@ -165,8 +165,8 @@ def test_reconciler_detects_gap_and_repairs(caplog: Any) -> None:
     assert "reconcile_gap" in log_messages
     gap_logs = [record for record in caplog.records if record.msg == "reconcile_gap"]
     assert len(gap_logs) == 1
-    assert getattr(gap_logs[0], "extra_fields")["action_taken"] == "rest_refetch_upsert"
-    assert getattr(gap_logs[0], "extra_fields")["rows_upserted"] == 3
+    assert gap_logs[0].extra_fields["action_taken"] == "rest_refetch_upsert"
+    assert gap_logs[0].extra_fields["rows_upserted"] == 3
 
 
 def test_reconciler_heuristic_mode_repairs_on_mismatch(caplog: Any) -> None:

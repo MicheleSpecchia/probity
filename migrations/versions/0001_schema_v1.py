@@ -7,8 +7,8 @@ Create Date: 2026-02-10 00:00:00
 
 from __future__ import annotations
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -495,8 +495,7 @@ def upgrade() -> None:
         ),
     )
     op.execute(
-        "CREATE INDEX forecasts_market_created_idx "
-        "ON forecasts (market_id, created_at DESC)"
+        "CREATE INDEX forecasts_market_created_idx ON forecasts (market_id, created_at DESC)"
     )
 
     op.create_table(

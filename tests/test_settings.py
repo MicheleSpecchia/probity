@@ -4,7 +4,6 @@ import pytest
 
 from pmx.config.settings import SettingsError, load_settings
 
-
 BASE_ENV = {
     "APP_DATABASE_URL": "postgresql+psycopg://pmx:pmx_dev_password@localhost:5432/pmx",
     "POSTGRES_USER": "pmx",

@@ -6,7 +6,6 @@ import pytest
 from pmx.db.db_helpers import get_database_url
 from tests.db_helpers import alembic_upgrade_head, to_psycopg_dsn
 
-
 REQUIRED_TABLES = {
     "articles",
     "candles",

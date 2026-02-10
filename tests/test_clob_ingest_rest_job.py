@@ -10,7 +10,7 @@ from pmx.jobs.clob_ingest_rest import ClobIngestRestConfig, run_clob_ingest_rest
 
 
 class _FakeConnectionContext:
-    def __enter__(self) -> "_FakeConnectionContext":
+    def __enter__(self) -> _FakeConnectionContext:
         return self
 
     def __exit__(
@@ -23,7 +23,7 @@ class _FakeConnectionContext:
 
 
 class _FakeRepository:
-    instances: list["_FakeRepository"] = []
+    instances: list[_FakeRepository] = []
 
     def __init__(self, connection: Any) -> None:
         self.connection = connection
@@ -52,7 +52,7 @@ class _FakeRepository:
 
 
 class _FakeClobClient:
-    instances: list["_FakeClobClient"] = []
+    instances: list[_FakeClobClient] = []
 
     def __init__(self, config: Any) -> None:
         self.config = config
@@ -155,4 +155,4 @@ def test_clob_ingest_rest_sorts_tokens_and_continues_on_token_error(
 
     failure_logs = [record for record in caplog.records if record.msg == "clob_token_failed"]
     assert len(failure_logs) == 1
-    assert getattr(failure_logs[0], "extra_fields")["token_id"] == "token-b"
+    assert failure_logs[0].extra_fields["token_id"] == "token-b"

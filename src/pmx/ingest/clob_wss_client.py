@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import json
 import time
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Iterator, Mapping, Protocol, Sequence
+from typing import Any, Protocol
 
 DEFAULT_CLOB_WSS_URL = "wss://clob.polymarket.com/ws"
 DEFAULT_CLOB_WSS_TIMEOUT_SECONDS = 20
@@ -302,10 +303,7 @@ def _flatten_row(
 
 def _detect_channel(row: Mapping[str, Any]) -> str:
     candidate = _optional_text(
-        row.get("channel")
-        or row.get("type")
-        or row.get("event")
-        or row.get("topic")
+        row.get("channel") or row.get("type") or row.get("event") or row.get("topic")
     )
     if candidate:
         lowered = candidate.lower()

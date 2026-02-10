@@ -9,7 +9,7 @@ from pmx.jobs.gamma_catalog_refresh import GammaCatalogRefreshConfig, run_gamma_
 
 
 class _FakeConnectionContext:
-    def __enter__(self) -> "_FakeConnectionContext":
+    def __enter__(self) -> _FakeConnectionContext:
         return self
 
     def __exit__(
@@ -22,7 +22,7 @@ class _FakeConnectionContext:
 
 
 class _FakeRepository:
-    instances: list["_FakeRepository"] = []
+    instances: list[_FakeRepository] = []
 
     def __init__(self, connection: Any) -> None:
         self.connection = connection
@@ -113,7 +113,7 @@ def test_run_gamma_catalog_refresh_is_deterministic_and_logs_conflicts(
 
     conflict_records = [record for record in caplog.records if record.msg == "token_conflict"]
     assert len(conflict_records) == 1
-    extra_fields = getattr(conflict_records[0], "extra_fields")
+    extra_fields = conflict_records[0].extra_fields
     assert extra_fields["event"] == "token_conflict"
     assert extra_fields["action"] == "kept_existing"
     assert extra_fields["existing_market_id"] == "m-a"

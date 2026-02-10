@@ -4,8 +4,6 @@ import os
 import subprocess
 import sys
 
-from pmx.db.db_helpers import to_psycopg_dsn
-
 
 def alembic_upgrade_head(database_url: str) -> None:
     env = dict(os.environ)

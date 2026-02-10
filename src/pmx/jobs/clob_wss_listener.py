@@ -4,10 +4,11 @@ import argparse
 import logging
 import os
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Mapping
+from typing import Any
 from uuid import UUID
 
 import psycopg
@@ -440,14 +441,10 @@ def _event_to_trade_record(event: ClobStreamEvent) -> TradeRecord | None:
     seq = event.seq
     if seq is None:
         seq = _parse_optional_int(
-            payload.get("seq")
-            or payload.get("sequence")
-            or payload.get("offset")
+            payload.get("seq") or payload.get("sequence") or payload.get("offset")
         )
     trade_hash = _optional_text(
-        payload.get("trade_hash")
-        or payload.get("hash")
-        or payload.get("id")
+        payload.get("trade_hash") or payload.get("hash") or payload.get("id")
     )
     if seq is None and trade_hash is None:
         trade_hash = build_trade_hash(

@@ -19,7 +19,6 @@ from pmx.ingest.clob_client import (
     DEFAULT_CLOB_BASE_URL,
     DEFAULT_CLOB_RATE_LIMIT_RPS,
     DEFAULT_CLOB_TIMEOUT_SECONDS,
-    CandleRecord,
     ClobClientConfig,
     ClobRestClient,
     TradeRecord,

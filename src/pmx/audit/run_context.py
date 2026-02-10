@@ -3,9 +3,10 @@ from __future__ import annotations
 import hashlib
 import json
 import subprocess
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any, Mapping
+from typing import Any
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 

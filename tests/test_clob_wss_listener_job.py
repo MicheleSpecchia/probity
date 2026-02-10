@@ -16,7 +16,7 @@ from pmx.jobs.clob_wss_listener import (
 
 
 class _FakeConnectionContext:
-    def __enter__(self) -> "_FakeConnectionContext":
+    def __enter__(self) -> _FakeConnectionContext:
         return self
 
     def __exit__(
@@ -29,7 +29,7 @@ class _FakeConnectionContext:
 
 
 class _FakeRepository:
-    instances: list["_FakeRepository"] = []
+    instances: list[_FakeRepository] = []
 
     def __init__(self, connection: Any) -> None:
         self.connection = connection
@@ -103,7 +103,7 @@ class _FakeRestClient:
 
 
 class _FakeReconciler:
-    instances: list["_FakeReconciler"] = []
+    instances: list[_FakeReconciler] = []
 
     def __init__(self, **_: Any) -> None:
         self.calls: list[str] = []

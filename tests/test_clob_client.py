@@ -271,9 +271,7 @@ def test_trades_missing_seq_and_hash_get_deterministic_fallback_hash() -> None:
     assert first_pass[0].trade_hash is not None
     assert first_pass[1].trade_hash is not None
     assert first_pass[0].trade_hash != first_pass[1].trade_hash
-    assert [trade.trade_hash for trade in first_pass] == [
-        trade.trade_hash for trade in second_pass
-    ]
+    assert [trade.trade_hash for trade in first_pass] == [trade.trade_hash for trade in second_pass]
 
 
 def test_build_trade_hash_is_deterministic() -> None:

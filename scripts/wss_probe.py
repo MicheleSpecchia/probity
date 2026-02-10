@@ -108,8 +108,7 @@ def load_subscribe_payload(args: argparse.Namespace) -> dict[str, Any]:
     token_ids = parse_token_ids(args.token_ids or os.getenv("TOKEN_IDS"))
     if not token_ids:
         raise ValueError(
-            "Missing token ids. Set --token-ids or TOKEN_IDS, "
-            "or provide --subscribe-payload-json."
+            "Missing token ids. Set --token-ids or TOKEN_IDS, or provide --subscribe-payload-json."
         )
 
     return {

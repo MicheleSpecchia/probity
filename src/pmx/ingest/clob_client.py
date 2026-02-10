@@ -3,10 +3,11 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
-from typing import Any, Mapping
+from typing import Any
 
 import requests
 
@@ -159,11 +160,7 @@ class ClobRestClient:
 
             side = _normalize_side(row.get("side"))
             seq = _parse_optional_int(row.get("seq") or row.get("sequence"))
-            trade_hash = _optional_text(
-                row.get("trade_hash")
-                or row.get("hash")
-                or row.get("id")
-            )
+            trade_hash = _optional_text(row.get("trade_hash") or row.get("hash") or row.get("id"))
             if seq is None and trade_hash is None:
                 trade_hash = build_trade_hash(
                     token_id=token_id,
@@ -206,15 +203,10 @@ class ClobRestClient:
         output: list[CandleRecord] = []
         for row in rows:
             start_ts = _parse_optional_datetime(
-                row.get("start_ts")
-                or row.get("start")
-                or row.get("startTime")
-                or row.get("t")
+                row.get("start_ts") or row.get("start") or row.get("startTime") or row.get("t")
             )
             end_ts = _parse_optional_datetime(
-                row.get("end_ts")
-                or row.get("end")
-                or row.get("endTime")
+                row.get("end_ts") or row.get("end") or row.get("endTime")
             )
             o = _parse_optional_decimal(row.get("o") or row.get("open"), quant=_PRICE_QUANT)
             h = _parse_optional_decimal(row.get("h") or row.get("high"), quant=_PRICE_QUANT)
