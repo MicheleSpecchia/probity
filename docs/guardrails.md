@@ -83,8 +83,10 @@
     - `rest_calls`
     - `rows_upserted`
   - Probe command (manual, no DB writes):
-    - `python scripts/wss_probe.py --token-ids tokenA,tokenB --max-messages 200`
-    - `--out tmp/wss_probe.jsonl`
+    - `python scripts/wss_probe.py --token-ids tokenA,tokenB --max-messages 200 --out tmp/wss_probe.jsonl`
+    - `TOKEN_IDS="tokenA,tokenB" python scripts/wss_probe.py --max-messages 200 --out tmp/wss_probe.jsonl` (POSIX)
+    - `$env:TOKEN_IDS="tokenA,tokenB"; python scripts/wss_probe.py --max-messages 200 --out tmp/wss_probe.jsonl` (PowerShell)
+    - `python scripts/wss_probe.py --subscribe-payload-json path/to/subscribe_payload.json --max-messages 200 --out tmp/wss_probe.jsonl`
   - Fixture refresh workflow:
     - capture probe output in JSONL
     - redact sensitive values preserving structure

@@ -178,20 +178,20 @@ No real ingestion/model/backtest implementation is included in this milestone.
 - Current expectation from shipped fixtures:
   - `supports_seq = True` based on `tests/fixtures/wss/*.json`.
 - Probe with explicit token ids:
-  ```powershell
+  ```text
   python scripts/wss_probe.py --token-ids tokenA,tokenB --max-messages 200 --out wss_probe.jsonl
   ```
 - Probe with `TOKEN_IDS` env:
-  ```powershell
-  $env:TOKEN_IDS="tokenA,tokenB"
-  python scripts/wss_probe.py --max-messages 200 --out wss_probe.jsonl
+  ```text
+  # POSIX (bash/zsh)
+  TOKEN_IDS="tokenA,tokenB" python scripts/wss_probe.py --max-messages 200 --out wss_probe.jsonl
+
+  # PowerShell
+  $env:TOKEN_IDS="tokenA,tokenB"; python scripts/wss_probe.py --max-messages 200 --out wss_probe.jsonl
   ```
 - Probe with custom subscribe payload file:
-  ```powershell
-  python scripts/wss_probe.py `
-    --subscribe-payload-json .\path\subscribe_payload.json `
-    --max-messages 200 `
-    --out wss_probe.jsonl
+  ```text
+  python scripts/wss_probe.py --subscribe-payload-json path/to/subscribe_payload.json --max-messages 200 --out wss_probe.jsonl
   ```
 - Fixture refresh workflow:
   - rerun probe when upstream protocol changes;
