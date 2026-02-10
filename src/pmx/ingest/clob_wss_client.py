@@ -8,6 +8,7 @@ from typing import Any, Iterator, Mapping, Protocol, Sequence
 
 DEFAULT_CLOB_WSS_URL = "wss://clob.polymarket.com/ws"
 DEFAULT_CLOB_WSS_TIMEOUT_SECONDS = 20
+DEFAULT_CLOB_WSS_SEQ_FIELDS: tuple[str, ...] = ("seq", "sequence", "offset")
 
 
 class ClobWssError(RuntimeError):
@@ -21,7 +22,8 @@ class ClobWssConfig:
     max_reconnect_attempts: int = 8
     backoff_seconds: float = 0.5
     max_backoff_seconds: float = 30.0
-    seq_field: str | None = "seq"
+    seq_field: str | None = None
+    seq_fields: tuple[str, ...] = DEFAULT_CLOB_WSS_SEQ_FIELDS
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,6 +153,7 @@ class ClobWssClient:
                     for event in parse_stream_message(
                         message,
                         seq_field=self.config.seq_field,
+                        seq_fields=self.config.seq_fields,
                     ):
                         if event.token_id not in token_set:
                             continue
@@ -193,9 +196,11 @@ class ClobWssClient:
 def parse_stream_message(
     payload: Any,
     *,
-    seq_field: str | None = "seq",
+    seq_field: str | None = None,
+    seq_fields: Sequence[str] | None = None,
 ) -> list[ClobStreamEvent]:
     rows = _extract_rows(payload)
+    resolved_seq_fields = _resolve_seq_fields(seq_field=seq_field, seq_fields=seq_fields)
     events: list[ClobStreamEvent] = []
     for row in rows:
         token_id = _optional_text(
@@ -218,7 +223,7 @@ def parse_stream_message(
             or row.get("updated_at")
             or row.get("updatedAt")
         )
-        seq = _extract_seq(row, seq_field=seq_field)
+        seq = extract_seq(row, resolved_seq_fields)
 
         events.append(
             ClobStreamEvent(
@@ -319,22 +324,59 @@ def _detect_channel(row: Mapping[str, Any]) -> str:
     return "unknown"
 
 
-def _extract_seq(row: Mapping[str, Any], *, seq_field: str | None) -> int | None:
-    if seq_field is None or seq_field.strip() == "":
+def extract_seq(row: Mapping[str, Any], fields: Sequence[str]) -> int | None:
+    normalized_fields = _normalize_seq_fields(fields)
+    if not normalized_fields:
         return None
 
-    requested = seq_field.strip()
-    candidates: list[str] = []
-    for candidate in (requested, "seq", "sequence", "offset"):
-        if candidate not in candidates:
-            candidates.append(candidate)
-
-    for candidate in candidates:
-        value = row.get(candidate)
-        parsed = _parse_optional_int(value)
-        if parsed is not None:
-            return parsed
+    for field_name in normalized_fields:
+        for value in _iter_field_values(row, field_name):
+            parsed = _parse_optional_int(value)
+            if parsed is not None:
+                return parsed
     return None
+
+
+def _resolve_seq_fields(
+    *,
+    seq_field: str | None,
+    seq_fields: Sequence[str] | None,
+) -> tuple[str, ...]:
+    if seq_field is not None:
+        legacy = seq_field.strip()
+        if not legacy:
+            return ()
+        return (legacy,)
+
+    if seq_fields is None:
+        return DEFAULT_CLOB_WSS_SEQ_FIELDS
+    return _normalize_seq_fields(seq_fields)
+
+
+def _normalize_seq_fields(fields: Sequence[str]) -> tuple[str, ...]:
+    normalized: list[str] = []
+    for field in fields:
+        text = str(field).strip()
+        if not text:
+            continue
+        if text not in normalized:
+            normalized.append(text)
+    return tuple(normalized)
+
+
+def _iter_field_values(value: Any, field_name: str) -> Iterator[Any]:
+    if isinstance(value, Mapping):
+        for key in sorted(value.keys(), key=str):
+            child = value[key]
+            if str(key) == field_name:
+                yield child
+            if isinstance(child, (Mapping, list)):
+                yield from _iter_field_values(child, field_name)
+        return
+
+    if isinstance(value, list):
+        for child in value:
+            yield from _iter_field_values(child, field_name)
 
 
 def _parse_optional_datetime(raw: Any) -> datetime | None:

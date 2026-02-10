@@ -58,12 +58,19 @@
     - Current repository expectation:
       `supports_seq = true` for shipped fixtures.
   - Gap detection strategy:
-    - seq-based when `supports_seq = true` and `CLOB_WSS_SEQ_FIELD` is set
-      (default `seq`):
-      gap if `seq != last_seq + 1`.
-    - heuristic when `supports_seq = false` or `CLOB_WSS_SEQ_FIELD` is empty:
+    - seq-based when `supports_seq = true` and configured seq fields are non-empty:
+      field extraction precedence is:
+      `CLOB_WSS_SEQ_FIELD` (legacy override, if set) else
+      `CLOB_WSS_SEQ_FIELDS` (default `seq,sequence,offset`).
+      If `CLOB_WSS_SEQ_FIELD` is explicitly empty/whitespace, it disables
+      seq-based mode and is never treated as a field name.
+      Gap when extracted seq is present and `seq != last_seq + 1`.
+    - heuristic when `supports_seq = false`, configured fields are empty,
+      or a specific message has no parseable seq-like field:
       gap if stream becomes stale (`now - last_trade_ts > CLOB_RECONCILE_GAP_SECONDS`);
       if no stream timestamp exists, reconcile still runs every tick.
+    - `msg_id` and `event_id` remain diagnostic-only; they do not drive
+      seq-based gap detection.
   - Mismatch strategy:
     - compute mid divergence in bps between stream and REST snapshots;
       mismatch when divergence exceeds `CLOB_RECONCILE_MISMATCH_BPS`.

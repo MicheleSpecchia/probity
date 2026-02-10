@@ -28,6 +28,7 @@ from pmx.ingest.clob_client import (
     normalize_orderbook,
 )
 from pmx.ingest.clob_wss_client import (
+    DEFAULT_CLOB_WSS_SEQ_FIELDS,
     DEFAULT_CLOB_WSS_TIMEOUT_SECONDS,
     DEFAULT_CLOB_WSS_URL,
     ClobReconnectEvent,
@@ -58,6 +59,7 @@ class ClobWssListenerConfig:
     clob_wss_backoff_seconds: float
     clob_wss_max_backoff_seconds: float
     clob_wss_seq_field: str | None
+    clob_wss_seq_fields: tuple[str, ...]
     clob_reconcile_gap_seconds: int
     clob_reconcile_mismatch_bps: int
     ingest_epsilon_seconds: int
@@ -74,6 +76,7 @@ class ClobWssListenerConfig:
             "clob_wss_backoff_seconds": self.clob_wss_backoff_seconds,
             "clob_wss_max_backoff_seconds": self.clob_wss_max_backoff_seconds,
             "clob_wss_seq_field": self.clob_wss_seq_field,
+            "clob_wss_seq_fields": list(self.clob_wss_seq_fields),
             "clob_reconcile_gap_seconds": self.clob_reconcile_gap_seconds,
             "clob_reconcile_mismatch_bps": self.clob_reconcile_mismatch_bps,
             "ingest_epsilon_seconds": self.ingest_epsilon_seconds,
@@ -193,6 +196,7 @@ def run_clob_wss_listener(
                 backoff_seconds=config.clob_wss_backoff_seconds,
                 max_backoff_seconds=config.clob_wss_max_backoff_seconds,
                 seq_field=config.clob_wss_seq_field,
+                seq_fields=config.clob_wss_seq_fields,
             )
         )
         reconciler = ClobReconciler(
@@ -202,7 +206,7 @@ def run_clob_wss_listener(
             run_context=run_context,
             since_ts=since_ts,
             strategy=ReconcileStrategyConfig(
-                seq_mode_enabled=bool(config.clob_wss_seq_field),
+                seq_mode_enabled=bool(config.clob_wss_seq_fields),
                 gap_seconds=config.clob_reconcile_gap_seconds,
                 mismatch_bps=config.clob_reconcile_mismatch_bps,
             ),
@@ -238,7 +242,7 @@ def run_clob_wss_listener(
                 repository=repository,
                 ingested_at=started_at,
                 orderbook_depth=config.clob_orderbook_depth,
-                seq_mode_enabled=bool(config.clob_wss_seq_field),
+                seq_mode_enabled=bool(config.clob_wss_seq_fields),
             )
             if handled == "trade":
                 stats["trades_upserted"] += 1
@@ -297,7 +301,7 @@ def load_clob_wss_listener_config() -> ClobWssListenerConfig:
     clob_wss_max_reconnect_attempts = _load_positive_int("CLOB_WSS_MAX_RECONNECTS", 8)
     clob_wss_backoff_seconds = _load_positive_float("CLOB_WSS_BACKOFF_SECONDS", 0.5)
     clob_wss_max_backoff_seconds = _load_positive_float("CLOB_WSS_MAX_BACKOFF_SECONDS", 30.0)
-    clob_wss_seq_field = _load_optional_text("CLOB_WSS_SEQ_FIELD", "seq")
+    clob_wss_seq_field, clob_wss_seq_fields = _load_wss_seq_config()
     clob_reconcile_gap_seconds = _load_positive_int("CLOB_RECONCILE_GAP_SECONDS", 60)
     clob_reconcile_mismatch_bps = _load_non_negative_int("CLOB_RECONCILE_MISMATCH_BPS", 10)
     ingest_epsilon_seconds = _load_positive_int("INGEST_EPSILON_SECONDS", 300)
@@ -313,6 +317,7 @@ def load_clob_wss_listener_config() -> ClobWssListenerConfig:
         clob_wss_backoff_seconds=clob_wss_backoff_seconds,
         clob_wss_max_backoff_seconds=clob_wss_max_backoff_seconds,
         clob_wss_seq_field=clob_wss_seq_field,
+        clob_wss_seq_fields=clob_wss_seq_fields,
         clob_reconcile_gap_seconds=clob_reconcile_gap_seconds,
         clob_reconcile_mismatch_bps=clob_reconcile_mismatch_bps,
         ingest_epsilon_seconds=ingest_epsilon_seconds,
@@ -699,6 +704,35 @@ def _load_optional_text(name: str, default: str | None) -> str | None:
         return default
     text = raw.strip()
     return text if text else None
+
+
+def _load_wss_seq_config() -> tuple[str | None, tuple[str, ...]]:
+    legacy_raw = os.getenv("CLOB_WSS_SEQ_FIELD")
+    if legacy_raw is not None:
+        legacy_field = legacy_raw.strip()
+        if not legacy_field:
+            # Explicit empty legacy override disables seq-based detection.
+            # This prevents interpreting '' as a valid field name.
+            return None, ()
+        return legacy_field, (legacy_field,)
+
+    fields_raw = os.getenv("CLOB_WSS_SEQ_FIELDS")
+    if fields_raw is None:
+        return None, DEFAULT_CLOB_WSS_SEQ_FIELDS
+
+    parsed_fields = _parse_seq_fields_csv(fields_raw)
+    return None, parsed_fields
+
+
+def _parse_seq_fields_csv(raw: str) -> tuple[str, ...]:
+    fields: list[str] = []
+    for item in raw.split(","):
+        candidate = item.strip()
+        if not candidate:
+            continue
+        if candidate not in fields:
+            fields.append(candidate)
+    return tuple(fields)
 
 
 def _load_positive_float(name: str, default: float) -> float:

@@ -218,15 +218,40 @@ def _collect_gap_reasons(
                 rest_max_seq = max(rest_sequences)
                 if rest_max_seq > state.last_seq + 1:
                     reasons.append("rest_seq_ahead")
-    else:
-        if state.last_trade_ts is not None:
-            delta_seconds = int((window_end - state.last_trade_ts).total_seconds())
-            if delta_seconds > strategy.gap_seconds:
-                reasons.append("heuristic_trade_stale")
         else:
-            reasons.append("heuristic_reconcile_tick")
+            # Seq mode is enabled globally, but this token currently has no
+            # usable seq signal; fallback to deterministic heuristic checks.
+            reasons.extend(
+                _collect_heuristic_gap_reasons(
+                    state=state,
+                    window_end=window_end,
+                    strategy=strategy,
+                )
+            )
+    else:
+        reasons.extend(
+            _collect_heuristic_gap_reasons(
+                state=state,
+                window_end=window_end,
+                strategy=strategy,
+            )
+        )
 
     return reasons
+
+
+def _collect_heuristic_gap_reasons(
+    *,
+    state: StreamTokenState,
+    window_end: datetime,
+    strategy: ReconcileStrategyConfig,
+) -> list[str]:
+    if state.last_trade_ts is not None:
+        delta_seconds = int((window_end - state.last_trade_ts).total_seconds())
+        if delta_seconds > strategy.gap_seconds:
+            return ["heuristic_trade_stale"]
+        return []
+    return ["heuristic_reconcile_tick"]
 
 
 def _compute_orderbook_mismatch_bps(

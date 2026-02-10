@@ -218,3 +218,66 @@ def test_reconciler_heuristic_mode_repairs_on_mismatch(caplog: Any) -> None:
 
     log_messages = [record.msg for record in caplog.records]
     assert "reconcile_gap" in log_messages
+
+
+def test_stream_token_state_ignores_missing_seq_in_seq_mode() -> None:
+    token_id = "token-1"
+    state = StreamTokenState()
+    state.observe_trade(
+        TradeRecord(
+            token_id=token_id,
+            event_ts=datetime(2026, 1, 1, 0, 0, 1, tzinfo=UTC),
+            price=Decimal("0.50000000"),
+            size=Decimal("1.00000000"),
+            side="buy",
+            trade_hash="h1",
+            seq=1,
+        ),
+        seq_mode_enabled=True,
+    )
+    state.observe_trade(
+        TradeRecord(
+            token_id=token_id,
+            event_ts=datetime(2026, 1, 1, 0, 0, 2, tzinfo=UTC),
+            price=Decimal("0.50000000"),
+            size=Decimal("1.00000000"),
+            side="buy",
+            trade_hash="h2",
+            seq=None,
+        ),
+        seq_mode_enabled=True,
+    )
+
+    assert state.last_seq == 1
+    assert state.saw_sequence_gap is False
+
+
+def test_reconciler_seq_mode_without_seq_falls_back_to_heuristic() -> None:
+    token_id = "token-1"
+    state = StreamTokenState(
+        last_trade_ts=datetime(2026, 1, 1, 0, 0, tzinfo=UTC),
+    )
+    repository = _FakeRepository()
+    reconciler = ClobReconciler(
+        rest_client=_FakeRestClient(trades=[], snapshot=None),
+        repository=repository,
+        logger=logging.getLogger("tests.reconciler"),
+        run_context=_run_context(),
+        since_ts=None,
+        strategy=ReconcileStrategyConfig(
+            seq_mode_enabled=True,
+            gap_seconds=30,
+            mismatch_bps=10,
+        ),
+    )
+
+    result = reconciler.reconcile_token(
+        token_id=token_id,
+        state=state,
+        ingested_at=datetime(2026, 1, 1, 0, 1, tzinfo=UTC),
+    )
+
+    assert result.gap_detected is True
+    assert result.action_taken == "rest_refetch_upsert"
+    assert result.rows_upserted == 0
+    assert result.rest_calls == 2

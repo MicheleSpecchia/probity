@@ -4,9 +4,15 @@ import logging
 from datetime import UTC, datetime
 from typing import Any
 
+import pytest
+
 from pmx.ingest.clob_wss_client import ClobReconnectEvent, ClobStreamEvent
 from pmx.ingest.reconciler import ReconcileResult
-from pmx.jobs.clob_wss_listener import ClobWssListenerConfig, run_clob_wss_listener
+from pmx.jobs.clob_wss_listener import (
+    ClobWssListenerConfig,
+    load_clob_wss_listener_config,
+    run_clob_wss_listener,
+)
 
 
 class _FakeConnectionContext:
@@ -167,6 +173,7 @@ def test_clob_wss_listener_processes_messages_and_reconcile(monkeypatch: Any, ca
             clob_wss_backoff_seconds=0.5,
             clob_wss_max_backoff_seconds=30.0,
             clob_wss_seq_field="seq",
+            clob_wss_seq_fields=("seq",),
             clob_reconcile_gap_seconds=60,
             clob_reconcile_mismatch_bps=10,
             ingest_epsilon_seconds=300,
@@ -196,3 +203,63 @@ def test_clob_wss_listener_processes_messages_and_reconcile(monkeypatch: Any, ca
     assert len(reconnect_logs) == 1
     state_logs = [record for record in caplog.records if record.msg == "token_state_snapshot"]
     assert len(state_logs) >= 1
+
+
+@pytest.mark.parametrize(
+    ("legacy", "fields", "expected_legacy", "expected_fields"),
+    [
+        ("offset", "seq,sequence,offset", "offset", ("offset",)),
+        ("", "seq,sequence,offset", None, ()),
+        (None, "sequence,offset", None, ("sequence", "offset")),
+        (None, None, None, ("seq", "sequence", "offset")),
+    ],
+)
+def test_load_clob_wss_listener_config_seq_fields_precedence(
+    monkeypatch: Any,
+    legacy: str | None,
+    fields: str | None,
+    expected_legacy: str | None,
+    expected_fields: tuple[str, ...],
+) -> None:
+    keys = [
+        "CLOB_WSS_SEQ_FIELD",
+        "CLOB_WSS_SEQ_FIELDS",
+        "CLOB_BASE_URL",
+        "CLOB_TIMEOUT_SECONDS",
+        "CLOB_RATE_LIMIT_RPS",
+        "CLOB_ORDERBOOK_DEPTH",
+        "CLOB_WSS_URL",
+        "CLOB_WSS_TIMEOUT_SECONDS",
+        "CLOB_WSS_MAX_RECONNECTS",
+        "CLOB_WSS_BACKOFF_SECONDS",
+        "CLOB_WSS_MAX_BACKOFF_SECONDS",
+        "CLOB_RECONCILE_GAP_SECONDS",
+        "CLOB_RECONCILE_MISMATCH_BPS",
+        "INGEST_EPSILON_SECONDS",
+    ]
+    for key in keys:
+        monkeypatch.delenv(key, raising=False)
+
+    if legacy is not None:
+        monkeypatch.setenv("CLOB_WSS_SEQ_FIELD", legacy)
+    if fields is not None:
+        monkeypatch.setenv("CLOB_WSS_SEQ_FIELDS", fields)
+
+    config = load_clob_wss_listener_config()
+
+    assert config.clob_wss_seq_field == expected_legacy
+    assert config.clob_wss_seq_fields == expected_fields
+
+
+def test_load_clob_wss_listener_config_empty_legacy_disables_seq_mode(
+    monkeypatch: Any,
+) -> None:
+    monkeypatch.delenv("CLOB_WSS_SEQ_FIELD", raising=False)
+    monkeypatch.delenv("CLOB_WSS_SEQ_FIELDS", raising=False)
+    monkeypatch.setenv("CLOB_WSS_SEQ_FIELD", "   ")
+    monkeypatch.setenv("CLOB_WSS_SEQ_FIELDS", "seq,sequence,offset")
+
+    config = load_clob_wss_listener_config()
+
+    assert config.clob_wss_seq_field is None
+    assert config.clob_wss_seq_fields == ()

@@ -10,6 +10,7 @@ from pmx.ingest.clob_wss_client import (
     ClobStreamEvent,
     ClobWssClient,
     ClobWssConfig,
+    extract_seq,
     parse_stream_message,
 )
 
@@ -94,6 +95,34 @@ def test_parse_stream_message_supports_configurable_seq_field() -> None:
     assert events[0].seq == 42
 
 
+def test_parse_stream_message_supports_default_seq_aliases() -> None:
+    payload = {
+        "events": [
+            {
+                "token_id": "token-a",
+                "type": "trade",
+                "timestamp": "2026-01-01T00:00:01Z",
+                "sequence": 7,
+                "price": "0.5",
+                "size": "1",
+            },
+            {
+                "token_id": "token-a",
+                "type": "trade",
+                "timestamp": "2026-01-01T00:00:02Z",
+                "offset": 8,
+                "price": "0.5",
+                "size": "1",
+            },
+        ]
+    }
+
+    events = parse_stream_message(payload)
+
+    assert len(events) == 2
+    assert [event.seq for event in events] == [7, 8]
+
+
 def test_parse_stream_message_can_disable_seq_parsing() -> None:
     payload = {
         "token_id": "token-a",
@@ -104,10 +133,61 @@ def test_parse_stream_message_can_disable_seq_parsing() -> None:
         "size": "1",
     }
 
-    events = parse_stream_message(payload, seq_field=None)
+    events = parse_stream_message(payload, seq_fields=())
 
     assert len(events) == 1
     assert events[0].seq is None
+
+
+@pytest.mark.parametrize(
+    ("field_name", "payload", "expected_seq"),
+    [
+        ("seq", {"seq": "10"}, 10),
+        ("sequence", {"sequence": 11}, 11),
+        ("offset", {"offset": 12}, 12),
+        ("missing", {"event_id": "abc"}, None),
+    ],
+)
+def test_extract_seq_uses_field_order(
+    field_name: str,
+    payload: dict[str, Any],
+    expected_seq: int | None,
+) -> None:
+    fields = (field_name,) if field_name != "missing" else ("seq", "sequence", "offset")
+    seq = extract_seq(payload, fields)
+    assert seq == expected_seq
+
+
+def test_extract_seq_prefers_first_configured_field() -> None:
+    payload = {
+        "seq": 3,
+        "sequence": 2,
+        "nested": {"offset": 1},
+    }
+    seq = extract_seq(payload, ("sequence", "seq", "offset"))
+    assert seq == 2
+
+
+def test_extract_seq_supports_nested_payloads() -> None:
+    payload = {
+        "token_id": "token-a",
+        "data": {
+            "trade": {
+                "offset": "17",
+            }
+        },
+    }
+    seq = extract_seq(payload, ("seq", "sequence", "offset"))
+    assert seq == 17
+
+
+def test_extract_seq_ignores_blank_field_names() -> None:
+    payload = {
+        "": 999,
+        "seq": 10,
+    }
+    seq = extract_seq(payload, ("", "   "))
+    assert seq is None
 
 
 def test_wss_client_reconnects_with_deterministic_backoff() -> None:

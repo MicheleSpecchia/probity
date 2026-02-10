@@ -135,7 +135,8 @@ No real ingestion/model/backtest implementation is included in this milestone.
   - `CLOB_WSS_MAX_RECONNECTS` (default: `8`)
   - `CLOB_WSS_BACKOFF_SECONDS` (default: `0.5`)
   - `CLOB_WSS_MAX_BACKOFF_SECONDS` (default: `30`)
-  - `CLOB_WSS_SEQ_FIELD` (default: `seq`, empty to disable seq-based detection)
+  - `CLOB_WSS_SEQ_FIELDS` (default: `seq,sequence,offset`)
+  - `CLOB_WSS_SEQ_FIELD` (legacy override; if set, forces a single field, empty disables seq-based detection)
   - `CLOB_RECONCILE_GAP_SECONDS` (default: `60`)
   - `CLOB_RECONCILE_MISMATCH_BPS` (default: `10`)
   - REST envs from the previous section (used by reconciler).
@@ -155,10 +156,16 @@ No real ingestion/model/backtest implementation is included in this milestone.
   - WSS ingestion is best-effort and can be out-of-order or incomplete.
   - REST is treated as source of truth during reconcile windows.
   - Gap detection strategy:
-    - seq-based mode (`CLOB_WSS_SEQ_FIELD` set): gap when `seq != last_seq + 1`.
-    - heuristic mode (`CLOB_WSS_SEQ_FIELD` empty): gap when stream is stale
-      versus `CLOB_RECONCILE_GAP_SECONDS`; if no stream trade timestamp is
-      available, reconcile still runs every tick.
+    - seq-based mode (active when configured seq fields include monotonic fields):
+      extraction order is `CLOB_WSS_SEQ_FIELD` (legacy, if set) otherwise
+      `CLOB_WSS_SEQ_FIELDS` (default `seq,sequence,offset`), and gap when
+      `seq != last_seq + 1`.
+      If `CLOB_WSS_SEQ_FIELD` is explicitly set to empty/whitespace, it
+      disables seq-based detection (it is never interpreted as a field name).
+    - heuristic mode (no configured seq fields, or event has no seq-like value):
+      gap when stream is stale versus `CLOB_RECONCILE_GAP_SECONDS`; if no
+      stream trade timestamp is available, reconcile still runs every tick.
+    - `msg_id`/`event_id` are diagnostic-only and are not used for gap detection.
   - Mismatch strategy:
     - top-of-book mismatch when REST mid diverges from stream mid by more than
       `CLOB_RECONCILE_MISMATCH_BPS` basis points.
