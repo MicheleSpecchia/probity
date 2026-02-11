@@ -82,6 +82,20 @@
 - Payloads are canonicalized with stable key ordering before downstream use.
 - Invalid payloads are rejected with deterministic error tuples:
   `code`, `path`, `reason`.
+- Claim extraction runner (stub mode) must emit an audit-ready JSON artifact:
+  - `artifacts/claim_extract/<run_id>_<market_id>.json`
+  - required fields include:
+    - `run_id`, `job_name`, `code_version`, `config_hash`
+    - `decision_ts`, `ingest_epsilon_seconds`
+    - `schema_versions`, `prompt_hash`
+    - `input_article_ids`, `input_canonical_urls`
+    - `validator_errors`, `no_trade_flags`, `payload`
+- If extractor output is invalid, fallback is mandatory and deterministic:
+  - set `no_trade_flags` to include `llm_invalid_output`
+  - payload fallback shape includes empty claims plus validation errors:
+    - `claims=[]`
+    - `claims_raw=[]`
+    - `errors=[{code,path,reason}, ...]`
 
 ## CLOB ingestion semantics
 - `--since-ts` is inclusive and normalized to UTC before filtering:
