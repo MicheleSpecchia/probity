@@ -27,9 +27,7 @@ def test_calibration_report_metrics_are_deterministic_and_expected() -> None:
     assert metrics["ece"] == pytest.approx(0.15, abs=1e-12)
     assert metrics["mce"] == pytest.approx(0.15, abs=1e-12)
     assert metrics["brier"] == pytest.approx(0.025, abs=1e-12)
-    expected_nll = -(
-        math.log(0.9) + math.log(0.9) + math.log(0.8) + math.log(0.8)
-    ) / 4.0
+    expected_nll = -(math.log(0.9) + math.log(0.9) + math.log(0.8) + math.log(0.8)) / 4.0
     assert metrics["nll"] == pytest.approx(expected_nll, abs=1e-12)
 
     bins = calibrated_report["bins"]
