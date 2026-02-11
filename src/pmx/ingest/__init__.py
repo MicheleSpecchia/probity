@@ -16,6 +16,12 @@ from pmx.ingest.clob_wss_client import (
     ClobWssConfig,
     parse_stream_message,
 )
+from pmx.ingest.gdelt_client import (
+    GdeltArticle,
+    GdeltClient,
+    GdeltClientConfig,
+    parse_gdelt_articles,
+)
 from pmx.ingest.gamma_catalog import (
     MarketRecord,
     MarketTokenRecord,
@@ -31,6 +37,12 @@ from pmx.ingest.reconciler import (
     ReconcileStrategyConfig,
     StreamTokenState,
 )
+from pmx.ingest.whitelist_crawler import (
+    CrawlResult,
+    WhitelistCrawler,
+    WhitelistCrawlerConfig,
+    extract_article_fields,
+)
 
 __all__ = [
     "CandleRecord",
@@ -41,20 +53,28 @@ __all__ = [
     "ClobStreamEvent",
     "ClobWssClient",
     "ClobWssConfig",
-    "GammaClient",
-    "GammaClientConfig",
+    "CrawlResult",
+    "GdeltArticle",
+    "GdeltClient",
+    "GdeltClientConfig",
     "MarketRecord",
     "MarketTokenRecord",
     "OrderbookSnapshot",
+    "GammaClient",
+    "GammaClientConfig",
     "ReconcileResult",
     "ReconcileStrategyConfig",
     "StreamTokenState",
     "TradeRecord",
     "build_trade_hash",
+    "extract_article_fields",
     "extract_market_tokens",
     "market_sort_key",
     "normalize_market_payload",
     "normalize_orderbook",
+    "parse_gdelt_articles",
     "parse_rule_text",
     "parse_stream_message",
+    "WhitelistCrawler",
+    "WhitelistCrawlerConfig",
 ]

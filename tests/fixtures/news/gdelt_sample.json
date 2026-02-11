@@ -1,0 +1,22 @@
+{
+  "articles": [
+    {
+      "url": "https://www.reuters.com/world/us/example-article/?utm_source=newsletter&fbclid=abc",
+      "title": "US Senate passes example bill",
+      "seendate": "20260101T120000Z",
+      "language": "English",
+      "domain": "reuters.com",
+      "summary": "Short Reuters summary",
+      "sourcecountry": "US"
+    },
+    {
+      "url": "https://apnews.com/article/example-law-123?utm_medium=social&utm_campaign=test",
+      "title": "AP: Example law reaches final vote",
+      "seendate": "20260101T123000Z",
+      "language": "English",
+      "domain": "apnews.com",
+      "summary": "Short AP summary",
+      "sourcecountry": "US"
+    }
+  ]
+}

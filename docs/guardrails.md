@@ -24,10 +24,36 @@
 - Catalog ingestion note:
   - Gamma catalog refresh stores ingestion metadata (`audit.ingested_at`)
     at write time for auditability.
+  - News ingestion stores `published_at` and run-level `ingested_at`
+    on every `articles` row (no null timestamps).
+  - News raw evidence is persisted in `articles.raw.gdelt` and
+    `articles.raw.crawler` for replay/audit.
   - CLOB REST ingestion stores a single run-level `ingested_at` timestamp
     across `orderbook_snapshots`, `trades`, and `candles`.
   - As-of eligibility is still decided downstream with `decision_ts + epsilon`
     filters in backtest/forecast selection.
+
+## News ingestion semantics
+- Primary-source configuration is loaded from `config/primary_sources.yaml`:
+  - defaults define `is_primary`, `trust_score`, per-domain crawl `rps`,
+    and `allow_subdomains`.
+  - listed domains are upserted into `sources` at job start.
+- URL canonicalization is deterministic and conservative:
+  - lowercase host and drop leading `www.`
+  - drop fragments
+  - remove tracking params (`utm_*`, `gclid`, `gbraid`, `wbraid`,
+    `fbclid`, `mc_cid`, `mc_eid`, `mkt_tok`)
+  - keep non-tracking params and sort remaining query pairs.
+- Dedupe policy:
+  - hard dedupe on `canonical_url`.
+  - soft dedupe on content hash (`sha256(normalized_text)`).
+  - fallback soft dedupe on title hash with same domain and
+    `published_at` within 24 hours.
+  - soft dedupe updates the matched row instead of inserting a duplicate.
+- Market linking v1 is deterministic and non-LLM:
+  - lexicon built from `markets.title` and `markets.slug`.
+  - score: `2*title_hits + body_hits + 0.5*slug_hits`.
+  - topK=5 with stable tie-break (`score DESC`, `market_id ASC`).
 
 ## CLOB ingestion semantics
 - `--since-ts` is inclusive and normalized to UTC before filtering:

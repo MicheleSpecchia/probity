@@ -94,6 +94,40 @@ No real ingestion/model/backtest implementation is included in this milestone.
   - `markets.rule_parse_json` currently stores both parser stub output and
     audit payload under `audit.*` (for example `audit.gamma_raw`).
 
+## News ingestion v1 (GDELT + whitelist crawler)
+- Required env:
+  - `APP_DATABASE_URL` or `DATABASE_URL`
+  - `GDELT_BASE_URL` (default: `https://api.gdeltproject.org/api/v2/doc/doc`)
+  - `GDELT_TIMEOUT_SECONDS` (default: `20`)
+  - `GDELT_MAX_RETRIES` (default: `4`)
+  - `GDELT_BACKOFF_SECONDS` (default: `0.5`)
+  - `GDELT_MAX_RECORDS` (default: `250`)
+  - `NEWS_PRIMARY_SOURCES_CONFIG` (default: `config/primary_sources.yaml`)
+  - `NEWS_CRAWLER_CONNECT_TIMEOUT_SECONDS` (default: `5`)
+  - `NEWS_CRAWLER_READ_TIMEOUT_SECONDS` (default: `15`)
+  - `NEWS_CRAWLER_MAX_RETRIES` (default: `3`)
+  - `NEWS_CRAWLER_BACKOFF_SECONDS` (default: `0.5`)
+- Run:
+  ```powershell
+  python -m pmx.jobs.news_ingest --since-published 2026-01-01T00:00:00Z --max-articles 200 --max-per-domain 20 --crawl-primary
+  ```
+- Disable crawler:
+  ```powershell
+  python -m pmx.jobs.news_ingest --since-published 2026-01-01T00:00:00Z --no-crawl-primary
+  ```
+- Notes:
+  - Primary-source whitelist is loaded from `config/primary_sources.yaml` and upserted into `sources`.
+  - URL canonicalization is conservative and strips tracking params (`utm_*`, `fbclid`, `gclid`, etc.).
+  - Dedupe policy:
+    - hard dedupe on `canonical_url`;
+    - soft dedupe on `content_hash`;
+    - fallback soft dedupe on `title_hash + same domain + published_at within 24h`.
+  - Raw audit payloads are persisted in `articles.raw`:
+    - `raw.gdelt` for source payload;
+    - `raw.crawler` for crawler response/extraction metadata.
+  - As-of safety is preserved by always storing both `published_at` and run-level `ingested_at`.
+  - Market linking is deterministic (`score = 2*title_hits + body_hits + 0.5*slug_hits`, topK=5, stable tie-break).
+
 ## CLOB REST ingestion (time-series)
 - Required env:
   - `APP_DATABASE_URL` or `DATABASE_URL`
@@ -213,6 +247,7 @@ src/pmx/
   db/
   ingest/
   jobs/
+  news/
   features/
   models/
   backtest/

@@ -1,0 +1,20 @@
+version: 1
+defaults:
+  is_primary: true
+  trust_score: 70
+  rps: 0.5
+  allow_subdomains: false
+domains:
+  - domain: "reuters.com"
+    name: "Reuters"
+    allow_subdomains: true
+    trust_score: 85
+    rps: 0.5
+  - domain: "apnews.com"
+    name: "Associated Press"
+    trust_score: 85
+  - domain: "bbc.com"
+    name: "BBC"
+    allow_subdomains: true
+    trust_score: 80
+  # Extend this list with additional primary domains as needed.

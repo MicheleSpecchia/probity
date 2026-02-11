@@ -9,6 +9,7 @@ description = "Research-grade scaffold for probabilistic market forecasting."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+  "pyyaml>=6.0.2",
   "psycopg[binary]>=3.2.3",
   "requests>=2.32.3",
   "structlog>=24.4.0",
@@ -55,6 +56,10 @@ show_error_codes = true
 module = ["tests.*"]
 allow_untyped_defs = true
 allow_untyped_calls = true
+
+[[tool.mypy.overrides]]
+module = ["yaml"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 addopts = "--cov=src/pmx --cov-report=term-missing"
