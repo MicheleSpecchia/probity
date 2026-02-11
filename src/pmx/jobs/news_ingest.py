@@ -7,7 +7,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
 import psycopg
@@ -505,20 +505,23 @@ def _build_article_raw_payload(
     dedupe_hashes: DedupeHashes,
     published_selection: PublishedAtSelection,
 ) -> dict[str, Any]:
-    return canonicalize_json(
-        {
-            "gdelt": article.raw,
-            "crawler": crawl_result.raw if crawl_result is not None else {"attempted": False},
-            "dedupe": {
-                "canonical_url": canonical_url,
-                "content_hash": dedupe_hashes.content_hash,
-                "title_hash": dedupe_hashes.title_hash,
-            },
-            "ingest": {
-                "published_at_source": published_selection.source,
-                "unknown_published_at": published_selection.unknown_published_at,
-            },
-        }
+    return cast(
+        dict[str, Any],
+        canonicalize_json(
+            {
+                "gdelt": article.raw,
+                "crawler": crawl_result.raw if crawl_result is not None else {"attempted": False},
+                "dedupe": {
+                    "canonical_url": canonical_url,
+                    "content_hash": dedupe_hashes.content_hash,
+                    "title_hash": dedupe_hashes.title_hash,
+                },
+                "ingest": {
+                    "published_at_source": published_selection.source,
+                    "unknown_published_at": published_selection.unknown_published_at,
+                },
+            }
+        ),
     )
 
 
