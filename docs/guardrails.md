@@ -33,6 +33,20 @@
   - As-of eligibility is still decided downstream with `decision_ts + epsilon`
     filters in backtest/forecast selection.
 
+## Feature snapshots as-of contract
+- Microstructure feature snapshots must be computed with the same as-of contract:
+  - input market data must satisfy:
+    - `event_ts <= decision_ts`
+    - `ingested_at <= decision_ts + epsilon`
+- Window definitions for microstructure v1:
+  - trades 5m window: `[decision_ts - 5m, decision_ts]`
+  - candles 1h window: `[decision_ts - 1h, decision_ts]` on `start_ts`
+  - last snapshot/trade selection uses deterministic tie-break:
+    `event_ts DESC`, `ingested_at DESC`, stable id DESC.
+- Feature persistence is idempotent:
+  - store as `feature_snapshots` with deterministic token-scoped
+    `feature_set_version` and upsert behavior.
+
 ## News ingestion semantics
 - Primary-source configuration is loaded from `config/primary_sources.yaml`:
   - defaults define `is_primary`, `trust_score`, per-domain crawl `rps`,

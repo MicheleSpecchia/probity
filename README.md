@@ -220,6 +220,32 @@ No real ingestion/model/backtest implementation is included in this milestone.
     - `action_taken`, `window_start`, `window_end`, `rest_calls`, `rows_upserted`
   - Repairs are idempotent because writes use DB upsert constraints.
 
+## Micro feature store v1 (as-of snapshots)
+- Required env:
+  - `APP_DATABASE_URL` or `DATABASE_URL`
+  - `INGEST_EPSILON_SECONDS` (default: `300`)
+- Run:
+  ```powershell
+  python -m pmx.jobs.compute_micro_features --decision-ts 2026-02-11T12:00:00Z --max-tokens 200 --epsilon-seconds 300
+  ```
+- Explicit token list:
+  ```powershell
+  python -m pmx.jobs.compute_micro_features --token-ids tokenA,tokenB --decision-ts 2026-02-11T12:00:00Z
+  ```
+- Notes:
+  - As-of input gating is enforced on every query:
+    - `event_ts <= decision_ts`
+    - `ingested_at <= decision_ts + epsilon`
+  - Persisted feature set is `micro_v1`, token-scoped via deterministic
+    `feature_set_version` (`micro_v1:token:<token_id>`) to keep idempotent
+    snapshots per token without schema changes.
+  - Current microstructure features:
+    - `mid_price`, `spread_bps`
+    - `top_depth_bid`, `top_depth_ask`, `book_imbalance_1`
+    - `last_trade_price`, `last_trade_size`
+    - `trade_count_5m`, `volume_5m`, `return_5m`
+    - `realized_vol_1h`, `stale_seconds_last_trade`, `stale_seconds_last_book`
+
 ## WSS protocol probe (no DB writes)
 - Goal:
   - capture real WSS message shapes and confirm seq-like fields.
