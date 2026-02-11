@@ -79,3 +79,13 @@ def test_whitelist_crawler_retries_and_returns_raw_payload() -> None:
     assert result.published_at is not None
     assert "crawler" not in result.raw
     assert result.raw["headers"]["content-type"] == "text/html"
+
+
+def test_extract_article_fields_from_jsonld_fixture() -> None:
+    html = Path("tests/fixtures/news/html_jsonld_article.html").read_text(encoding="utf-8")
+    extracted = extract_article_fields(html)
+
+    assert extracted["title"] == "JSON-LD headline"
+    assert extracted["published_at"] is not None
+    assert extracted["published_at"].isoformat() == "2026-01-02T09:30:00+00:00"
+    assert extracted["body"] == "Body extracted from JSON-LD payload."

@@ -1,0 +1,10 @@
+[
+  {
+    "input": "https://www.Example.com/politics?id=42&utm_source=newsletter&fbclid=abc&z=9#a",
+    "expected": "https://example.com/politics?id=42&z=9"
+  },
+  {
+    "input": "https://APNews.com/article/example-law-123?mkt_tok=foo&v=2&gbraid=1",
+    "expected": "https://apnews.com/article/example-law-123?v=2"
+  }
+]

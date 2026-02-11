@@ -63,7 +63,7 @@ class CandleRecord:
     end_ts: datetime
     o: Decimal
     h: Decimal
-    l: Decimal
+    low: Decimal
     c: Decimal
     v: Decimal
 
@@ -210,11 +210,11 @@ class ClobRestClient:
             )
             o = _parse_optional_decimal(row.get("o") or row.get("open"), quant=_PRICE_QUANT)
             h = _parse_optional_decimal(row.get("h") or row.get("high"), quant=_PRICE_QUANT)
-            l = _parse_optional_decimal(row.get("l") or row.get("low"), quant=_PRICE_QUANT)
+            low = _parse_optional_decimal(row.get("l") or row.get("low"), quant=_PRICE_QUANT)
             c = _parse_optional_decimal(row.get("c") or row.get("close"), quant=_PRICE_QUANT)
             v = _parse_optional_decimal(row.get("v") or row.get("volume"), quant=_SIZE_QUANT)
 
-            if None in (start_ts, end_ts, o, h, l, c, v):
+            if None in (start_ts, end_ts, o, h, low, c, v):
                 continue
             if since_bound is not None and start_ts < since_bound:
                 continue
@@ -227,7 +227,7 @@ class ClobRestClient:
                     end_ts=end_ts,
                     o=o,
                     h=h,
-                    l=l,
+                    low=low,
                     c=c,
                     v=v,
                 )

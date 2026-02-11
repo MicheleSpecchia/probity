@@ -65,7 +65,7 @@ def test_clob_repository_upserts_are_idempotent() -> None:
             end_ts=datetime(2026, 2, 10, 0, 1, tzinfo=UTC),
             o=Decimal("0.40000000"),
             h=Decimal("0.60000000"),
-            l=Decimal("0.39000000"),
+            low=Decimal("0.39000000"),
             c=Decimal("0.50000000"),
             v=Decimal("5.00000000"),
         )

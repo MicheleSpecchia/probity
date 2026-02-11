@@ -32,6 +32,20 @@ class ExistingArticleRef:
     canonical_url: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class ExistingArticle:
+    article_id: int
+    canonical_url: str | None
+    title: str | None
+    body: str | None
+    summary: str | None
+    published_at: datetime
+    ingested_at: datetime
+    source_id: int
+    lang: str | None
+    raw: dict[str, Any]
+
+
 class NewsRepository:
     def __init__(self, connection: psycopg.Connection) -> None:
         self.connection = connection
@@ -268,6 +282,44 @@ class NewsRepository:
                     article_id,
                 ),
             )
+
+    def get_article(self, article_id: int) -> ExistingArticle | None:
+        with self.connection.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    article_id,
+                    canonical_url,
+                    title,
+                    body,
+                    summary,
+                    published_at,
+                    ingested_at,
+                    source_id,
+                    lang,
+                    raw
+                FROM articles
+                WHERE article_id = %s
+                LIMIT 1
+                """,
+                (article_id,),
+            )
+            row = cursor.fetchone()
+        if row is None:
+            return None
+        raw_value = row["raw"] if isinstance(row["raw"], dict) else {}
+        return ExistingArticle(
+            article_id=int(row["article_id"]),
+            canonical_url=_as_text(row["canonical_url"]),
+            title=_as_text(row["title"]),
+            body=_as_text(row["body"]),
+            summary=_as_text(row["summary"]),
+            published_at=_as_utc_datetime(row["published_at"]),
+            ingested_at=_as_utc_datetime(row["ingested_at"]),
+            source_id=int(row["source_id"]),
+            lang=_as_text(row["lang"]),
+            raw=dict(raw_value),
+        )
 
     def replace_article_markets(self, article_id: int, market_ids: list[str]) -> int:
         sorted_market_ids = sorted({market_id for market_id in market_ids if market_id})

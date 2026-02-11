@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from pmx.news.normalize import canonicalize_url, extract_domain, normalize_text
 
 
@@ -18,3 +21,9 @@ def test_extract_domain_drops_www_and_lowercases() -> None:
 
 def test_normalize_text_is_deterministic() -> None:
     assert normalize_text("  Hello   WORLD  ") == "hello world"
+
+
+def test_canonicalize_url_fixture_cases() -> None:
+    fixture = json.loads(Path("tests/fixtures/news/url_canonicalization_cases.json").read_text())
+    for item in fixture:
+        assert canonicalize_url(item["input"]) == item["expected"]

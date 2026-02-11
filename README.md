@@ -120,13 +120,20 @@ No real ingestion/model/backtest implementation is included in this milestone.
   - URL canonicalization is conservative and strips tracking params (`utm_*`, `fbclid`, `gclid`, etc.).
   - Dedupe policy:
     - hard dedupe on `canonical_url`;
-    - soft dedupe on `content_hash`;
-    - fallback soft dedupe on `title_hash + same domain + published_at within 24h`.
+    - soft dedupe on `content_hash` updates the existing row (no insert);
+    - fallback soft dedupe on `title_hash + same domain + published_at within 24h` updates the existing row (no insert).
+    - every dedupe update logs `dedupe_reason` in structured logs:
+      `canonical_url`, `content_hash`, `title_window`.
   - Raw audit payloads are persisted in `articles.raw`:
     - `raw.gdelt` for source payload;
-    - `raw.crawler` for crawler response/extraction metadata.
-  - As-of safety is preserved by always storing both `published_at` and run-level `ingested_at`.
-  - Market linking is deterministic (`score = 2*title_hits + body_hits + 0.5*slug_hits`, topK=5, stable tie-break).
+    - `raw.crawler` for crawler response/extraction metadata;
+    - `raw.ingest` for timestamp policy metadata (`published_at_source`, `unknown_published_at`).
+  - `published_at` policy is explicit:
+    - prefer crawler `published_at`;
+    - fallback to GDELT `published_at`;
+    - if both missing, fallback to run `ingested_at` and mark `raw.ingest.unknown_published_at=true`.
+  - As-of safety is preserved by always storing `published_at` and run-level `ingested_at`.
+  - Market linking is deterministic (`score = 2*title_hits + body_hits + 0.5*slug_hits`, topK=5, stable tie-break) with a fixed stopword list in tokenization.
 
 ## CLOB REST ingestion (time-series)
 - Required env:

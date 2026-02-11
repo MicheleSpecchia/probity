@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 from uuid import UUID
 
 import psycopg
@@ -14,7 +14,10 @@ import psycopg
 from pmx.audit.logging import get_logger
 from pmx.audit.run_context import RunContext, build_run_context
 from pmx.db.db_helpers import get_database_url, to_psycopg_dsn
-from pmx.db.news_repository import ArticleWritePayload, NewsRepository
+from pmx.db.news_repository import (
+    ArticleWritePayload,
+    NewsRepository,
+)
 from pmx.ingest.gdelt_client import (
     DEFAULT_GDELT_BASE_URL,
     DEFAULT_GDELT_MAX_RECORDS,
@@ -25,9 +28,10 @@ from pmx.ingest.gdelt_client import (
 )
 from pmx.ingest.whitelist_crawler import CrawlResult, WhitelistCrawler, WhitelistCrawlerConfig
 from pmx.news.dedupe import (
+    DedupeHashes,
     SoftDedupeCandidate,
     build_dedupe_hashes,
-    select_soft_dedupe_candidate,
+    select_soft_dedupe_match,
 )
 from pmx.news.linking import (
     LinkedMarketScore,
@@ -73,6 +77,22 @@ class NewsIngestConfig:
             "primary_sources_config_path": self.primary_sources_config_path,
             "ingest_epsilon_seconds": self.ingest_epsilon_seconds,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class PublishedAtSelection:
+    published_at: datetime
+    source: str
+    unknown_published_at: bool
+
+
+@dataclass(frozen=True, slots=True)
+class DedupeUpsertResult:
+    article_id: int
+    outcome: str
+    dedupe_reason: str | None
+    published_at_source: str
+    unknown_published_at: bool
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -222,7 +242,7 @@ def run_news_ingest(
                     )
                     stats["crawled_primary"] += 1
 
-                article_id, dedupe_kind = _upsert_article_with_dedupe(
+                dedupe_result = _upsert_article_with_dedupe(
                     repository=repository,
                     run_ingested_at=started_at,
                     article=article,
@@ -230,26 +250,41 @@ def run_news_ingest(
                     source_domain=source_domain,
                     source_id=source_id,
                 )
+                article_id = dedupe_result.article_id
 
-                if dedupe_kind == "inserted":
+                if dedupe_result.outcome == "inserted":
                     stats["inserted"] += 1
-                elif dedupe_kind == "hard":
-                    stats["deduped_hard"] += 1
+                else:
                     stats["updated"] += 1
-                elif dedupe_kind == "soft":
-                    stats["deduped_soft"] += 1
-                    stats["updated"] += 1
+                    if dedupe_result.dedupe_reason == "canonical_url":
+                        stats["deduped_hard"] += 1
+                    elif dedupe_result.dedupe_reason in {"content_hash", "title_window"}:
+                        stats["deduped_soft"] += 1
+
+                if dedupe_result.dedupe_reason is not None:
                     _log(
                         logger,
                         logging.INFO,
-                        "dedupe_soft_hit",
+                        "dedupe_applied",
                         run_context,
                         article_id=article_id,
                         source_domain=source_domain,
                         url=article.url,
+                        dedupe_reason=dedupe_result.dedupe_reason,
+                        action_taken="update_existing",
                     )
-                else:
-                    stats["updated"] += 1
+
+                if dedupe_result.unknown_published_at:
+                    _log(
+                        logger,
+                        logging.WARNING,
+                        "article_missing_published_at",
+                        run_context,
+                        article_id=article_id,
+                        source_domain=source_domain,
+                        url=article.url,
+                        action_taken="ingested_at_fallback",
+                    )
 
                 linked_scores = _build_links_for_article(
                     article=article,
@@ -349,7 +384,7 @@ def _upsert_article_with_dedupe(
     crawl_result: CrawlResult | None,
     source_domain: str,
     source_id: int,
-) -> tuple[int, str]:
+) -> DedupeUpsertResult:
     final_url = _as_text(crawl_result.raw.get("final_url")) if crawl_result is not None else None
     canonical_url = canonicalize_url(final_url) or canonicalize_url(article.url) or article.url
 
@@ -361,21 +396,19 @@ def _upsert_article_with_dedupe(
     )
     body = crawl_result.body if crawl_result is not None else None
     summary = article.summary
-    published_at = (
-        crawl_result.published_at if crawl_result and crawl_result.published_at else article.published_at
-    ) or _as_utc_datetime(run_ingested_at)
+    published_selection = _select_article_published_at(
+        crawler_published_at=crawl_result.published_at if crawl_result is not None else None,
+        gdelt_published_at=article.published_at,
+        run_ingested_at=run_ingested_at,
+    )
 
     dedupe_hashes = build_dedupe_hashes(title=title, body=body, summary=summary)
-    raw_payload = canonicalize_json(
-        {
-            "gdelt": article.raw,
-            "crawler": crawl_result.raw if crawl_result is not None else {"attempted": False},
-            "dedupe": {
-                "canonical_url": canonical_url,
-                "content_hash": dedupe_hashes.content_hash,
-                "title_hash": dedupe_hashes.title_hash,
-            },
-        }
+    raw_payload = _build_article_raw_payload(
+        article=article,
+        crawl_result=crawl_result,
+        canonical_url=canonical_url,
+        dedupe_hashes=dedupe_hashes,
+        published_selection=published_selection,
     )
     write_payload = ArticleWritePayload(
         url=article.url,
@@ -383,7 +416,7 @@ def _upsert_article_with_dedupe(
         title=title,
         body=body,
         summary=summary,
-        published_at=published_at,
+        published_at=published_selection.published_at,
         ingested_at=run_ingested_at,
         source_id=source_id,
         lang=article.lang,
@@ -392,8 +425,20 @@ def _upsert_article_with_dedupe(
 
     hard_match = repository.find_article_by_canonical_url(canonical_url)
     if hard_match is not None:
-        repository.update_article(hard_match.article_id, write_payload)
-        return hard_match.article_id, "hard"
+        merged_payload = _merge_payload_fill_missing(
+            repository=repository,
+            article_id=hard_match.article_id,
+            incoming=write_payload,
+            incoming_unknown_published_at=published_selection.unknown_published_at,
+        )
+        repository.update_article(hard_match.article_id, merged_payload)
+        return DedupeUpsertResult(
+            article_id=hard_match.article_id,
+            outcome="updated",
+            dedupe_reason="canonical_url",
+            published_at_source=published_selection.source,
+            unknown_published_at=published_selection.unknown_published_at,
+        )
 
     candidates = repository.find_soft_candidates_by_content_hash(
         content_hash=dedupe_hashes.content_hash,
@@ -401,22 +446,207 @@ def _upsert_article_with_dedupe(
     title_candidates = repository.find_soft_candidates_by_title_hash(
         title_hash=dedupe_hashes.title_hash,
         source_domain=source_domain,
-        published_at=published_at,
+        published_at=published_selection.published_at,
     )
     merged_candidates = _merge_soft_candidates(candidates, title_candidates)
-    soft_match = select_soft_dedupe_candidate(
+    soft_match = select_soft_dedupe_match(
         merged_candidates,
         content_hash=dedupe_hashes.content_hash,
         title_hash=dedupe_hashes.title_hash,
         source_domain=source_domain,
-        published_at=published_at,
+        published_at=published_selection.published_at,
     )
     if soft_match is not None:
-        repository.update_article(soft_match.article_id, write_payload)
-        return soft_match.article_id, "soft"
+        if soft_match.reason == "title_window" and soft_match.candidate.source_domain != source_domain:
+            inserted_id = repository.insert_article(write_payload)
+            return DedupeUpsertResult(
+                article_id=inserted_id,
+                outcome="inserted",
+                dedupe_reason=None,
+                published_at_source=published_selection.source,
+                unknown_published_at=published_selection.unknown_published_at,
+            )
+        merged_payload = _merge_payload_fill_missing(
+            repository=repository,
+            article_id=soft_match.candidate.article_id,
+            incoming=write_payload,
+            incoming_unknown_published_at=published_selection.unknown_published_at,
+        )
+        repository.update_article(soft_match.candidate.article_id, merged_payload)
+        return DedupeUpsertResult(
+            article_id=soft_match.candidate.article_id,
+            outcome="updated",
+            dedupe_reason=soft_match.reason,
+            published_at_source=published_selection.source,
+            unknown_published_at=published_selection.unknown_published_at,
+        )
 
     inserted_id = repository.insert_article(write_payload)
-    return inserted_id, "inserted"
+    return DedupeUpsertResult(
+        article_id=inserted_id,
+        outcome="inserted",
+        dedupe_reason=None,
+        published_at_source=published_selection.source,
+        unknown_published_at=published_selection.unknown_published_at,
+    )
+
+
+def _build_article_raw_payload(
+    *,
+    article: GdeltArticle,
+    crawl_result: CrawlResult | None,
+    canonical_url: str,
+    dedupe_hashes: DedupeHashes,
+    published_selection: PublishedAtSelection,
+) -> dict[str, Any]:
+    return canonicalize_json(
+        {
+            "gdelt": article.raw,
+            "crawler": crawl_result.raw if crawl_result is not None else {"attempted": False},
+            "dedupe": {
+                "canonical_url": canonical_url,
+                "content_hash": dedupe_hashes.content_hash,
+                "title_hash": dedupe_hashes.title_hash,
+            },
+            "ingest": {
+                "published_at_source": published_selection.source,
+                "unknown_published_at": published_selection.unknown_published_at,
+            },
+        }
+    )
+
+
+def _select_article_published_at(
+    *,
+    crawler_published_at: datetime | None,
+    gdelt_published_at: datetime | None,
+    run_ingested_at: datetime,
+) -> PublishedAtSelection:
+    if crawler_published_at is not None:
+        return PublishedAtSelection(
+            published_at=_as_utc_datetime(crawler_published_at),
+            source="crawler_published_at",
+            unknown_published_at=False,
+        )
+    if gdelt_published_at is not None:
+        return PublishedAtSelection(
+            published_at=_as_utc_datetime(gdelt_published_at),
+            source="gdelt_published_at",
+            unknown_published_at=False,
+        )
+    return PublishedAtSelection(
+        published_at=_as_utc_datetime(run_ingested_at),
+        source="ingested_at_fallback",
+        unknown_published_at=True,
+    )
+
+
+def _merge_payload_fill_missing(
+    *,
+    repository: NewsRepository,
+    article_id: int,
+    incoming: ArticleWritePayload,
+    incoming_unknown_published_at: bool,
+) -> ArticleWritePayload:
+    existing = repository.get_article(article_id)
+    if existing is None:
+        return incoming
+
+    existing_unknown_published_at = _read_unknown_published_flag(existing.raw)
+    use_incoming_published_at = existing_unknown_published_at and not incoming_unknown_published_at
+    merged_published_at = (
+        incoming.published_at if use_incoming_published_at else existing.published_at
+    )
+    merged_unknown_published_at = (
+        incoming_unknown_published_at if use_incoming_published_at else existing_unknown_published_at
+    )
+
+    merged_raw = _merge_json_fill_missing(existing.raw, incoming.raw)
+    merged_raw = _set_unknown_published_flag(merged_raw, merged_unknown_published_at)
+
+    return ArticleWritePayload(
+        url=incoming.url,
+        canonical_url=_prefer_existing_text(existing.canonical_url, incoming.canonical_url),
+        title=_prefer_existing_text(existing.title, incoming.title),
+        body=_prefer_existing_optional_text(existing.body, incoming.body),
+        summary=_prefer_existing_optional_text(existing.summary, incoming.summary),
+        published_at=merged_published_at,
+        ingested_at=incoming.ingested_at,
+        source_id=existing.source_id,
+        lang=_prefer_existing_optional_text(existing.lang, incoming.lang),
+        raw=canonicalize_json(merged_raw),
+    )
+
+
+def _read_unknown_published_flag(raw_payload: Mapping[str, Any]) -> bool:
+    ingest = raw_payload.get("ingest")
+    if not isinstance(ingest, Mapping):
+        return False
+    return bool(ingest.get("unknown_published_at"))
+
+
+def _set_unknown_published_flag(raw_payload: dict[str, Any], value: bool) -> dict[str, Any]:
+    merged = dict(raw_payload)
+    ingest = merged.get("ingest")
+    ingest_dict: dict[str, Any]
+    if isinstance(ingest, Mapping):
+        ingest_dict = dict(ingest)
+    else:
+        ingest_dict = {}
+    ingest_dict["unknown_published_at"] = bool(value)
+    merged["ingest"] = ingest_dict
+    return merged
+
+
+def _merge_json_fill_missing(existing: Any, incoming: Any) -> Any:
+    if isinstance(existing, Mapping) and isinstance(incoming, Mapping):
+        existing_map = {str(key): value for key, value in existing.items()}
+        incoming_map = {str(key): value for key, value in incoming.items()}
+        merged: dict[str, Any] = {}
+        keys = sorted(set(existing_map.keys()) | set(incoming_map.keys()))
+        for key in keys:
+            existing_value = existing_map.get(key)
+            incoming_value = incoming_map.get(key)
+            merged[key] = _merge_json_fill_missing(existing_value, incoming_value)
+        return merged
+    if isinstance(existing, list) and isinstance(incoming, list):
+        if existing:
+            return list(existing)
+        return list(incoming)
+    if _is_empty_value(existing):
+        return incoming
+    return existing
+
+
+def _is_empty_value(value: Any) -> bool:
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value.strip() == ""
+    if isinstance(value, Mapping):
+        return len(value) == 0
+    if isinstance(value, list):
+        return len(value) == 0
+    return False
+
+
+def _prefer_existing_text(existing: str | None, incoming: str) -> str:
+    if existing is not None:
+        normalized = existing.strip()
+        if normalized and normalized.lower() != "untitled":
+            return normalized
+    return incoming
+
+
+def _prefer_existing_optional_text(existing: str | None, incoming: str | None) -> str | None:
+    if existing is not None:
+        normalized = existing.strip()
+        if normalized and normalized.lower() != "untitled":
+            return normalized
+    if incoming is None:
+        return None
+    normalized_incoming = incoming.strip()
+    return normalized_incoming if normalized_incoming else None
 
 
 def _merge_soft_candidates(

@@ -253,7 +253,10 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument(
         "--since-ts",
         dest="since_ts",
-        help="Optional ISO datetime lower bound (inclusive) for trades.event_ts and candles.start_ts.",
+        help=(
+            "Optional ISO datetime lower bound (inclusive) for "
+            "trades.event_ts and candles.start_ts."
+        ),
     )
     parser.add_argument(
         "--interval",

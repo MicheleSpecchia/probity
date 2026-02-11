@@ -1,0 +1,20 @@
+{
+  "articles": [
+    {
+      "url": "https://www.reuters.com/world/us/example-content-duplicate-a?utm_source=feed",
+      "title": "US Senate sets final vote for Example Law",
+      "seendate": "20260101T140000Z",
+      "language": "English",
+      "domain": "reuters.com",
+      "summary": "Lawmakers set a final vote date for the example law."
+    },
+    {
+      "url": "https://reuters.com/world/us/example-content-duplicate-b?fbclid=tracking",
+      "title": "US Senate sets final vote for Example Law",
+      "seendate": "20260101T140500Z",
+      "language": "English",
+      "domain": "reuters.com",
+      "summary": "Lawmakers set a final vote date for the example law."
+    }
+  ]
+}

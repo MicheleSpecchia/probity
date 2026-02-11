@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -29,7 +29,7 @@ class _FakeConnectionContext:
 
 
 class _FakeRepository:
-    instances: list[_FakeRepository] = []
+    instances: ClassVar[list[_FakeRepository]] = []
 
     def __init__(self, connection: Any) -> None:
         self.connection = connection
@@ -56,7 +56,7 @@ class _FakeRepository:
 
 
 class _FakeWssClient:
-    received_token_ids: list[str] = []
+    received_token_ids: ClassVar[list[str]] = []
 
     def __init__(self, config: Any) -> None:
         self.config = config
@@ -103,7 +103,7 @@ class _FakeRestClient:
 
 
 class _FakeReconciler:
-    instances: list[_FakeReconciler] = []
+    instances: ClassVar[list[_FakeReconciler]] = []
 
     def __init__(self, **_: Any) -> None:
         self.calls: list[str] = []

@@ -181,7 +181,7 @@ class ClobRepository:
                     _as_utc_datetime(ingested_at),
                     candle.o,
                     candle.h,
-                    candle.l,
+                    candle.low,
                     candle.c,
                     candle.v,
                 ),

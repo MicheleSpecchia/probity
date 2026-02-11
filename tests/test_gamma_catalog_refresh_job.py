@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, ClassVar
 
 from pmx.db.gamma_catalog_repository import TokenConflict
 from pmx.jobs.gamma_catalog_refresh import GammaCatalogRefreshConfig, run_gamma_catalog_refresh
@@ -22,7 +22,7 @@ class _FakeConnectionContext:
 
 
 class _FakeRepository:
-    instances: list[_FakeRepository] = []
+    instances: ClassVar[list[_FakeRepository]] = []
 
     def __init__(self, connection: Any) -> None:
         self.connection = connection

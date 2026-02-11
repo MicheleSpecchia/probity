@@ -19,3 +19,29 @@ def test_market_linking_is_deterministic_with_stable_tie_break() -> None:
 
     assert [item.market_id for item in linked] == ["m-1", "m-2"]
     assert linked[0].score >= linked[1].score
+
+
+def test_market_linking_is_stable_across_repeated_runs() -> None:
+    markets = [
+        {"market_id": "m-11", "title": "Will the example law pass", "slug": "example-law-pass"},
+        {"market_id": "m-10", "title": "Example law vote", "slug": "example-law-vote"},
+    ]
+    lexicon = build_market_lexicon(markets)
+    article_title = "The example law vote update"
+    article_body = "This is the law vote update for the senate."
+
+    first = link_article_markets(
+        title=article_title,
+        body=article_body,
+        lexicon=lexicon,
+        top_k=5,
+    )
+    second = link_article_markets(
+        title=article_title,
+        body=article_body,
+        lexicon=lexicon,
+        top_k=5,
+    )
+
+    assert [item.market_id for item in first] == [item.market_id for item in second]
+    assert [item.score for item in first] == [item.score for item in second]

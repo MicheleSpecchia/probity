@@ -49,11 +49,23 @@
   - soft dedupe on content hash (`sha256(normalized_text)`).
   - fallback soft dedupe on title hash with same domain and
     `published_at` within 24 hours.
-  - soft dedupe updates the matched row instead of inserting a duplicate.
+  - action policy is explicit and deterministic:
+    - `canonical_url` match => update existing row (no insert)
+    - `content_hash` match => update existing row (no insert)
+    - `title_hash + domain + window` match => update existing row (no insert)
+  - updates merge raw payloads and fill missing fields only.
+  - each dedupe update logs `dedupe_reason`:
+    `canonical_url`, `content_hash`, or `title_window`.
+- `published_at` policy for ingestion:
+  - precedence: crawler `published_at` > GDELT `published_at` > none.
+  - if both are missing, fallback to run `ingested_at` and mark
+    `raw.ingest.unknown_published_at = true` with
+    `raw.ingest.published_at_source = "ingested_at_fallback"`.
 - Market linking v1 is deterministic and non-LLM:
   - lexicon built from `markets.title` and `markets.slug`.
   - score: `2*title_hits + body_hits + 0.5*slug_hits`.
   - topK=5 with stable tie-break (`score DESC`, `market_id ASC`).
+  - tokenization uses a fixed stopword list to avoid drift across runs.
 
 ## CLOB ingestion semantics
 - `--since-ts` is inclusive and normalized to UTC before filtering:

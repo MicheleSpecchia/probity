@@ -5,6 +5,34 @@ from dataclasses import dataclass
 from typing import Iterable, Mapping, Sequence
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
+_STOPWORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "for",
+        "from",
+        "in",
+        "is",
+        "it",
+        "of",
+        "on",
+        "or",
+        "that",
+        "the",
+        "this",
+        "to",
+        "was",
+        "were",
+        "with",
+        "will",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +114,11 @@ def link_article_markets(
 def _tokenize(raw_text: str | None) -> set[str]:
     if raw_text is None:
         return set()
-    return {token for token in _TOKEN_RE.findall(raw_text.lower()) if token}
+    return {
+        token
+        for token in _TOKEN_RE.findall(raw_text.lower())
+        if token and token not in _STOPWORDS
+    }
 
 
 def _as_text(value: str | None) -> str | None:

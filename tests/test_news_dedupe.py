@@ -6,6 +6,7 @@ from pmx.news.dedupe import (
     SoftDedupeCandidate,
     build_dedupe_hashes,
     select_soft_dedupe_candidate,
+    select_soft_dedupe_match,
 )
 
 
@@ -85,3 +86,28 @@ def test_select_soft_dedupe_falls_back_to_title_hash_domain_and_window() -> None
 
     assert match is not None
     assert match.article_id == 11
+
+
+def test_select_soft_dedupe_match_exposes_reason() -> None:
+    published_at = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+    candidates = [
+        SoftDedupeCandidate(
+            article_id=21,
+            source_domain="reuters.com",
+            published_at=datetime(2026, 1, 1, 11, 30, tzinfo=UTC),
+            content_hash="content-a",
+            title_hash="title-a",
+        )
+    ]
+
+    match = select_soft_dedupe_match(
+        candidates,
+        content_hash="content-a",
+        title_hash="title-a",
+        source_domain="reuters.com",
+        published_at=published_at,
+    )
+
+    assert match is not None
+    assert match.candidate.article_id == 21
+    assert match.reason == "content_hash"

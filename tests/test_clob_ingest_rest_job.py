@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, ClassVar
 
 from pmx.ingest.clob_client import CandleRecord, OrderbookSnapshot, TradeRecord
 from pmx.jobs.clob_ingest_rest import ClobIngestRestConfig, run_clob_ingest_rest
@@ -23,7 +23,7 @@ class _FakeConnectionContext:
 
 
 class _FakeRepository:
-    instances: list[_FakeRepository] = []
+    instances: ClassVar[list[_FakeRepository]] = []
 
     def __init__(self, connection: Any) -> None:
         self.connection = connection
@@ -52,7 +52,7 @@ class _FakeRepository:
 
 
 class _FakeClobClient:
-    instances: list[_FakeClobClient] = []
+    instances: ClassVar[list[_FakeClobClient]] = []
 
     def __init__(self, config: Any) -> None:
         self.config = config
@@ -108,7 +108,7 @@ class _FakeClobClient:
                 end_ts=datetime(2026, 1, 1, 0, 1, tzinfo=UTC),
                 o=Decimal("0.40000000"),
                 h=Decimal("0.60000000"),
-                l=Decimal("0.39000000"),
+                low=Decimal("0.39000000"),
                 c=Decimal("0.50000000"),
                 v=Decimal("5.00000000"),
             )
