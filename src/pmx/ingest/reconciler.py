@@ -4,11 +4,13 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pmx.audit.run_context import RunContext
-from pmx.db.clob_repository import ClobRepository
 from pmx.ingest.clob_client import ClobRestClient, OrderbookSnapshot, TradeRecord
+
+if TYPE_CHECKING:
+    from pmx.db.clob_repository import ClobRepository
 
 _MIN_MID_BASE = Decimal("0.00000001")
 
