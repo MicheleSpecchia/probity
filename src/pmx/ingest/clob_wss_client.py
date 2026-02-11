@@ -150,6 +150,7 @@ class ClobWssClient:
                             return
                         timeout_seconds = min(timeout_seconds, remaining)
 
+                    assert connection is not None
                     message = connection.recv_json(timeout_seconds=timeout_seconds)
                     for event in parse_stream_message(
                         message,
