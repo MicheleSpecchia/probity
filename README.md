@@ -268,6 +268,26 @@ No real ingestion/model/backtest implementation is included in this milestone.
     plus `dataset_hash`, `config_hash`, `code_version`, and skip counters.
 - See `docs/backtest.md` for details.
 
+## Market selector v1 (accuracy-first)
+- Run selector:
+  ```powershell
+  python -m pmx.jobs.select_markets `
+    --decision-ts 2026-02-11T12:00:00Z `
+    --epsilon-seconds 300 `
+    --max-candidates 1500 `
+    --k-deep 200
+  ```
+- Selector outputs:
+  - deterministic `selector_v1` deep-dive set
+  - baseline comparator sets:
+    - `baseline_top_volume`
+    - `baseline_random_stratified`
+- Persistence:
+  - writes `selection_runs` + `selection_items`
+  - writes selector audit artifact in `artifacts/selector/<run_id>.json`
+  - candidate score fallback artifact used if dedicated candidate table is absent.
+- See `docs/selector.md` for scoring components, bucket mix, and constraints.
+
 ## WSS protocol probe (no DB writes)
 - Goal:
   - capture real WSS message shapes and confirm seq-like fields.

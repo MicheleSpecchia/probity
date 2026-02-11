@@ -62,6 +62,24 @@
   - `code_version`
   - `feature_set`
 
+## Selection bias control (market selector)
+- Deep-dive market selection must always persist:
+  - primary selector (`selector_v1`)
+  - baseline comparators (`baseline_top_volume`, `baseline_random_stratified`)
+- Baseline selectors are mandatory to monitor selection-bias drift.
+- Selector scoring is deterministic:
+  - stable feature extraction order
+  - stable tie-breaks (`score`, liquidity, volume, market_id)
+  - deterministic stratified-random seed derived from
+    `sha256(decision_ts + config_hash)`.
+- Selector as-of safety:
+  - all market data inputs (`price_prob`, volume/liquidity signals) must satisfy:
+    - `event_ts <= decision_ts`
+    - `ingested_at <= decision_ts + epsilon`
+  - feature snapshots must be selected with `asof_ts <= decision_ts`;
+    payloads with explicit `ingest_bound_ts` above `decision_ts + epsilon`
+    are considered ineligible.
+
 ## News ingestion semantics
 - Primary-source configuration is loaded from `config/primary_sources.yaml`:
   - defaults define `is_primary`, `trust_score`, per-domain crawl `rps`,
