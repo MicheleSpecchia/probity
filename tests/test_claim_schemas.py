@@ -49,11 +49,7 @@ def test_validate_claim_extract_rejects_too_many_sources() -> None:
 def test_validate_claim_extract_rejects_duplicate_source_url_after_canonicalization() -> None:
     payload = _load_fixture("valid_claim_extract.json")
     payload["claims"][0]["sources"].append(
-        {
-            "url": (
-                "https://www.reuters.com/world/us/example-election-story?utm_source=email"
-            )
-        }
+        {"url": ("https://www.reuters.com/world/us/example-election-story?utm_source=email")}
     )
 
     with pytest.raises(PayloadValidationError) as exc_info:

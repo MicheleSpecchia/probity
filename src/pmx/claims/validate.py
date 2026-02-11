@@ -210,8 +210,7 @@ def _collect_claim_source_issues(rows: Sequence[Any], root_path: str) -> list[Va
                         code="duplicate_source_url",
                         path=f"{source_path}[{source_idx}].url",
                         reason=(
-                            f"duplicate source URL in claim at index {first_idx}: "
-                            f"{normalized_url}"
+                            f"duplicate source URL in claim at index {first_idx}: {normalized_url}"
                         ),
                     )
                 )
