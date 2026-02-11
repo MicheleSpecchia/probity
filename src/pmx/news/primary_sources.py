@@ -69,9 +69,7 @@ def load_primary_sources_config(path: str | Path) -> PrimarySourceConfig:
             is_primary=bool(item_map.get("is_primary", defaults.is_primary)),
             trust_score=_coerce_trust_score(item_map.get("trust_score", defaults.trust_score)),
             rps=_coerce_positive_float(item_map.get("rps", defaults.rps), fallback=defaults.rps),
-            allow_subdomains=bool(
-                item_map.get("allow_subdomains", defaults.allow_subdomains)
-            ),
+            allow_subdomains=bool(item_map.get("allow_subdomains", defaults.allow_subdomains)),
         )
         policies.append(policy)
 

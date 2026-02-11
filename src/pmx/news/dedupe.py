@@ -37,8 +37,10 @@ def build_dedupe_hashes(
     body: str | None,
     summary: str | None = None,
 ) -> DedupeHashes:
-    content_basis = body if body and body.strip() else " ".join(
-        part for part in (title, summary) if part and part.strip()
+    content_basis = (
+        body
+        if body and body.strip()
+        else " ".join(part for part in (title, summary) if part and part.strip())
     )
     content_hash = sha256_hex(content_basis)
     title_hash = sha256_hex(title)

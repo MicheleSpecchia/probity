@@ -36,7 +36,9 @@ class _FakeGdeltClient:
 class _FakeCrawler:
     def __init__(self) -> None:
         self._html_by_domain = {
-            "reuters.com": Path("tests/fixtures/news/html_reuters_1.html").read_text(encoding="utf-8"),
+            "reuters.com": Path("tests/fixtures/news/html_reuters_1.html").read_text(
+                encoding="utf-8"
+            ),
             "apnews.com": Path("tests/fixtures/news/html_ap_1.html").read_text(encoding="utf-8"),
         }
 

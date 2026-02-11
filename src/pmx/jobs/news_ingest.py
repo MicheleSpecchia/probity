@@ -340,7 +340,9 @@ def run_news_ingest(
 def load_news_ingest_config() -> NewsIngestConfig:
     return NewsIngestConfig(
         gdelt_base_url=os.getenv("GDELT_BASE_URL", DEFAULT_GDELT_BASE_URL),
-        gdelt_timeout_seconds=_load_positive_int("GDELT_TIMEOUT_SECONDS", DEFAULT_GDELT_TIMEOUT_SECONDS),
+        gdelt_timeout_seconds=_load_positive_int(
+            "GDELT_TIMEOUT_SECONDS", DEFAULT_GDELT_TIMEOUT_SECONDS
+        ),
         gdelt_max_retries=_load_non_negative_int("GDELT_MAX_RETRIES", 4),
         gdelt_backoff_seconds=_load_positive_float("GDELT_BACKOFF_SECONDS", 0.5),
         gdelt_max_records=_load_positive_int("GDELT_MAX_RECORDS", DEFAULT_GDELT_MAX_RECORDS),
@@ -457,7 +459,10 @@ def _upsert_article_with_dedupe(
         published_at=published_selection.published_at,
     )
     if soft_match is not None:
-        if soft_match.reason == "title_window" and soft_match.candidate.source_domain != source_domain:
+        if (
+            soft_match.reason == "title_window"
+            and soft_match.candidate.source_domain != source_domain
+        ):
             inserted_id = repository.insert_article(write_payload)
             return DedupeUpsertResult(
                 article_id=inserted_id,
@@ -558,7 +563,9 @@ def _merge_payload_fill_missing(
         incoming.published_at if use_incoming_published_at else existing.published_at
     )
     merged_unknown_published_at = (
-        incoming_unknown_published_at if use_incoming_published_at else existing_unknown_published_at
+        incoming_unknown_published_at
+        if use_incoming_published_at
+        else existing_unknown_published_at
     )
 
     merged_raw = _merge_json_fill_missing(existing.raw, incoming.raw)

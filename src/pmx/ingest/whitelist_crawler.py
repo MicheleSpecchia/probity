@@ -249,7 +249,8 @@ def _extract_body(html_text: str) -> str | None:
             return cleaned
 
     paragraphs = [
-        _clean_html_fragment(match.group("value")) for match in _PARAGRAPH_TAG_RE.finditer(html_text)
+        _clean_html_fragment(match.group("value"))
+        for match in _PARAGRAPH_TAG_RE.finditer(html_text)
     ]
     paragraph_text = " ".join(part for part in paragraphs if part)
     if paragraph_text:

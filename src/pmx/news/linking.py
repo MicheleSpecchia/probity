@@ -115,9 +115,7 @@ def _tokenize(raw_text: str | None) -> set[str]:
     if raw_text is None:
         return set()
     return {
-        token
-        for token in _TOKEN_RE.findall(raw_text.lower())
-        if token and token not in _STOPWORDS
+        token for token in _TOKEN_RE.findall(raw_text.lower()) if token and token not in _STOPWORDS
     }
 
 

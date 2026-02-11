@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pmx.ingest.whitelist_crawler import WhitelistCrawler, WhitelistCrawlerConfig, extract_article_fields
+from pmx.ingest.whitelist_crawler import (
+    WhitelistCrawler,
+    WhitelistCrawlerConfig,
+    extract_article_fields,
+)
 
 
 class _FakeResponse:

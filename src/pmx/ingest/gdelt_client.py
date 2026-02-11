@@ -124,10 +124,7 @@ def parse_gdelt_articles(payload: Any) -> list[GdeltArticle]:
     output: list[GdeltArticle] = []
     for row in rows:
         url = _as_text(
-            row.get("url")
-            or row.get("sourceurl")
-            or row.get("sourceUrl")
-            or row.get("link")
+            row.get("url") or row.get("sourceurl") or row.get("sourceUrl") or row.get("link")
         )
         if url is None:
             continue
@@ -137,11 +134,7 @@ def parse_gdelt_articles(payload: Any) -> list[GdeltArticle]:
             continue
 
         title = _as_text(row.get("title") or row.get("seendate")) or url
-        summary = _as_text(
-            row.get("summary")
-            or row.get("snippet")
-            or row.get("socialimage")
-        )
+        summary = _as_text(row.get("summary") or row.get("snippet") or row.get("socialimage"))
         lang = _as_text(row.get("language") or row.get("lang"))
         published_at = _parse_optional_datetime(
             row.get("published_at")
