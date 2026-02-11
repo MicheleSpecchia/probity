@@ -6,7 +6,7 @@ import re
 from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from pmx.audit.run_context import RunContext
 from pmx.claims.extractor import normalize_articles_for_prompt, validation_issue_to_dict
@@ -62,7 +62,7 @@ def build_audit_bundle(
     )
     if not isinstance(bundle, dict):
         raise ValueError("Audit bundle canonicalization failed")
-    return cast(dict[str, Any], bundle)
+    return bundle
 
 
 def write_audit_bundle(
@@ -73,7 +73,7 @@ def write_audit_bundle(
     market_id: str,
 ) -> Path:
     root = Path(artifacts_root)
-    output_dir = root / "claim_extract"
+    output_dir = root if root.name.lower() == "claim_extract" else root / "claim_extract"
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"{_safe_filename(run_id)}_{_safe_filename(market_id)}.json"
 

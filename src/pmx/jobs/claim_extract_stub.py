@@ -144,9 +144,12 @@ def run_claim_extract_stub(
 
 
 def load_claim_extract_stub_config(*, artifacts_root: str | None = None) -> ClaimExtractStubConfig:
+    root: str = (
+        artifacts_root or os.getenv("CLAIM_EXTRACT_ARTIFACTS_ROOT") or "artifacts/claim_extract"
+    )
     return ClaimExtractStubConfig(
         ingest_epsilon_seconds=_load_positive_int("INGEST_EPSILON_SECONDS", 300),
-        artifacts_root=artifacts_root or os.getenv("CLAIM_EXTRACT_ARTIFACTS_ROOT", "artifacts"),
+        artifacts_root=root,
         claim_schema_version=CLAIM_EXTRACT_SCHEMA_VERSION,
         evidence_schema_version=EVIDENCE_CHECKLIST_SCHEMA_VERSION,
     )
@@ -208,9 +211,21 @@ def _sorted_article_ids(articles: Sequence[Mapping[str, Any]]) -> list[int]:
     ids: list[int] = []
     for article in articles:
         raw_id = article.get("article_id")
+        if raw_id is None:
+            continue
+        if isinstance(raw_id, bool):
+            continue
+        if isinstance(raw_id, int):
+            ids.append(raw_id)
+            continue
+        if not isinstance(raw_id, str):
+            continue
+        text = raw_id.strip()
+        if not text:
+            continue
         try:
-            parsed = int(raw_id)
-        except (TypeError, ValueError):
+            parsed = int(text)
+        except ValueError:
             continue
         ids.append(parsed)
     return sorted(ids)

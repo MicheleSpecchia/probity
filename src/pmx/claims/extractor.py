@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from pmx.claims.schemas import CLAIM_EXTRACT_SCHEMA_VERSION
 from pmx.claims.validate import PayloadValidationError, ValidationIssue, validate_claim_extract
@@ -108,7 +108,7 @@ def run_extract_stub(
     canonical_payload = canonicalize_json(payload)
     if not isinstance(canonical_payload, dict):
         raise ValueError("Stub payload canonicalization failed")
-    return cast(dict[str, Any], canonical_payload)
+    return canonical_payload
 
 
 def validate_and_normalize(
@@ -135,7 +135,7 @@ def validate_and_normalize(
         if not isinstance(fallback, dict):
             raise ValueError("Fallback payload canonicalization failed") from exc
         return ExtractionOutcome(
-            payload=cast(dict[str, Any], fallback),
+            payload=fallback,
             validator_errors=tuple(exc.issues),
             no_trade_flags=(INVALID_OUTPUT_FLAG,),
             used_fallback=True,
