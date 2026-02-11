@@ -246,6 +246,28 @@ No real ingestion/model/backtest implementation is included in this milestone.
     - `trade_count_5m`, `volume_5m`, `return_5m`
     - `realized_vol_1h`, `stale_seconds_last_trade`, `stale_seconds_last_book`
 
+## Backtest baselines A/B (walk-forward, as-of)
+- Baseline A:
+  - `p = price_prob` where `price_prob` is selected as-of from market data
+    (`mid` from orderbook, fallback to last trade price).
+- Baseline B:
+  - deterministic logistic scorer over `micro_v1` features (no training step).
+- Run:
+  ```powershell
+  python -m pmx.jobs.backtest_baselines `
+    --token-ids tokenA,tokenB `
+    --from 2026-01-01T00:00:00Z `
+    --to 2026-01-03T00:00:00Z `
+    --step-hours 4 `
+    --epsilon-seconds 300 `
+    --feature-set micro_v1
+  ```
+- Artifact:
+  - `artifacts/backtests/<run_id>.json`
+  - includes aggregate/per-token metrics (`Brier`, `ECE`, `sharpness`),
+    plus `dataset_hash`, `config_hash`, `code_version`, and skip counters.
+- See `docs/backtest.md` for details.
+
 ## WSS protocol probe (no DB writes)
 - Goal:
   - capture real WSS message shapes and confirm seq-like fields.

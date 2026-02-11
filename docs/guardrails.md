@@ -47,6 +47,21 @@
   - store as `feature_snapshots` with deterministic token-scoped
     `feature_set_version` and upsert behavior.
 
+## Backtest harness as-of contract
+- Walk-forward backtests must reconstruct examples at each `decision_ts`
+  using only as-of-eligible market data:
+  - `event_ts <= decision_ts`
+  - `ingested_at <= decision_ts + epsilon`
+- Baseline A input (`price_prob`) must be selected with the same as-of gating
+  (orderbook `mid` preferred, last trade fallback).
+- Labels are allowed only when the market has known resolution and
+  `decision_ts < resolved_ts`.
+- Every backtest run must persist reproducibility metadata:
+  - `dataset_hash`
+  - `config_hash`
+  - `code_version`
+  - `feature_set`
+
 ## News ingestion semantics
 - Primary-source configuration is loaded from `config/primary_sources.yaml`:
   - defaults define `is_primary`, `trust_score`, per-domain crawl `rps`,
