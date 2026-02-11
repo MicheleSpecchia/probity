@@ -11,8 +11,8 @@ from pmx.backtest.asof_dataset import Example
 from pmx.backtest.metrics import aggregate_metrics
 from pmx.forecast.calibration import (
     Calibrator,
-    calibration_report,
     calibrate_probabilities,
+    calibration_report,
     calibrator_hash,
     fit_calibrator,
 )
