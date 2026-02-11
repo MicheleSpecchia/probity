@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -115,6 +116,43 @@ class _FakeClobClient:
         ]
 
 
+def _is_clob_token_failed_log(record: Any) -> bool:
+    if record.msg == "clob_token_failed":
+        return True
+    message = record.getMessage()
+    if message == "clob_token_failed":
+        return True
+    try:
+        parsed = json.loads(message)
+    except (TypeError, ValueError):
+        parsed = None
+    if isinstance(parsed, dict) and parsed.get("msg") == "clob_token_failed":
+        return True
+    return '"msg":"clob_token_failed"' in message or '"msg": "clob_token_failed"' in message
+
+
+def _extract_token_id(record: Any) -> str | None:
+    extra_fields = getattr(record, "extra_fields", None)
+    if isinstance(extra_fields, dict):
+        token_id = extra_fields.get("token_id")
+        if token_id is not None:
+            return str(token_id)
+
+    message = record.getMessage()
+    try:
+        parsed = json.loads(message)
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(parsed, dict):
+        return None
+    parsed_extra = parsed.get("extra_fields")
+    if isinstance(parsed_extra, dict):
+        token_id = parsed_extra.get("token_id")
+        if token_id is not None:
+            return str(token_id)
+    return None
+
+
 def test_clob_ingest_rest_sorts_tokens_and_continues_on_token_error(
     monkeypatch: Any,
     caplog: Any,
@@ -153,6 +191,6 @@ def test_clob_ingest_rest_sorts_tokens_and_continues_on_token_error(
     assert repo.tokens_requested == ["token-a", "token-a", "token-a"]
     assert _FakeClobClient.instances[0].orderbook_fallbacks[0] is not None
 
-    failure_logs = [record for record in caplog.records if record.msg == "clob_token_failed"]
+    failure_logs = [record for record in caplog.records if _is_clob_token_failed_log(record)]
     assert len(failure_logs) == 1
-    assert failure_logs[0].extra_fields["token_id"] == "token-b"
+    assert _extract_token_id(failure_logs[0]) == "token-b"

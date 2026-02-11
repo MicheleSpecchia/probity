@@ -158,9 +158,13 @@ class ClobWssClient:
                     ):
                         if event.token_id not in token_set:
                             continue
-                        yield event
                         emitted_messages += 1
-                        if max_messages is not None and emitted_messages >= max_messages:
+                        should_stop = max_messages is not None and emitted_messages >= max_messages
+                        if should_stop and connection is not None:
+                            connection.close()
+                            connection = None
+                        yield event
+                        if should_stop:
                             return
             except Exception as exc:
                 reconnect_attempt += 1
@@ -286,7 +290,26 @@ def _flatten_row(
 ) -> dict[str, Any]:
     merged: dict[str, Any] = {}
     if inherited:
-        merged.update(inherited)
+        excluded_keys = {
+            "events",
+            "items",
+            "results",
+            "trades",
+            "book_updates",
+            "books",
+            "data",
+            "seq",
+            "sequence",
+            "offset",
+        }
+        for key in sorted(inherited.keys(), key=str):
+            key_text = str(key)
+            if key_text in excluded_keys:
+                continue
+            inherited_value = inherited[key]
+            if isinstance(inherited_value, (Mapping, list, tuple)):
+                continue
+            merged[key_text] = inherited_value
 
     data_payload = row.get("data")
     if isinstance(data_payload, Mapping):
