@@ -5,6 +5,7 @@ import json
 import logging
 import os
 from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -260,12 +261,13 @@ def run_select_markets(
             "code_version": run_context.code_version,
         }
 
+    coerced_fields = _coerce_mapping(summary["counts"])
     _log(
         logger,
         logging.INFO,
         "select_markets_completed",
         run_context,
-        **summary["counts"],
+        **coerced_fields,
         bucket_counts=summary["bucket_counts"],
         category_counts=summary["category_counts"],
         flag_counts=summary["flag_counts"],
@@ -439,6 +441,12 @@ def _log(
     payload: dict[str, Any] = dict(run_context.as_log_context())
     payload["extra_fields"] = extra_fields
     logger.log(level, message, extra=payload)
+
+
+def _coerce_mapping(value: Any) -> dict[str, Any]:
+    if isinstance(value, Mapping):
+        return {str(key): item for key, item in value.items()}
+    return {}
 
 
 if __name__ == "__main__":
