@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from typing import Any, Final
 
@@ -18,12 +18,12 @@ def schema_path(filename: str) -> Path:
     return SCHEMAS_DIR / filename
 
 
-@lru_cache(maxsize=None)
+@cache
 def load_claim_extract_schema() -> dict[str, Any]:
     return _load_schema(CLAIM_EXTRACT_SCHEMA_FILENAME)
 
 
-@lru_cache(maxsize=None)
+@cache
 def load_evidence_checklist_schema() -> dict[str, Any]:
     return _load_schema(EVIDENCE_CHECKLIST_SCHEMA_FILENAME)
 

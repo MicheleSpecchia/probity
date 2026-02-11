@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
-from functools import lru_cache
+from functools import cache
 from typing import Any, Final, cast
 
 from jsonschema import Draft202012Validator, FormatChecker
@@ -89,12 +89,12 @@ def validate_evidence_checklist(payload: Any) -> ValidatedChecklist:
     )
 
 
-@lru_cache(maxsize=None)
+@cache
 def _claim_extract_validator() -> Draft202012Validator:
     return Draft202012Validator(load_claim_extract_schema(), format_checker=FormatChecker())
 
 
-@lru_cache(maxsize=None)
+@cache
 def _evidence_checklist_validator() -> Draft202012Validator:
     return Draft202012Validator(load_evidence_checklist_schema(), format_checker=FormatChecker())
 
