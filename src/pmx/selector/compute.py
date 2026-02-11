@@ -30,6 +30,8 @@ class Candidate:
     market_payload: dict[str, Any]
     volume_24h: float
     include_reasons: tuple[str, ...]
+    screen_score: float = 0.0
+    deep_score: float = 0.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,6 +147,8 @@ def build_candidate_set(
                 market_payload=market_payload,
                 volume_24h=round(volume_map.get(row.token_id, 0.0), 8),
                 include_reasons=tuple(sorted(reasons)),
+                screen_score=0.0,
+                deep_score=0.0,
             )
         )
 
@@ -353,6 +357,8 @@ def _fetch_feature_map(
             market_payload=row.market_payload,
             volume_24h=0.0,
             include_reasons=(),
+            screen_score=0.0,
+            deep_score=0.0,
         )
         for row in rows
     ]

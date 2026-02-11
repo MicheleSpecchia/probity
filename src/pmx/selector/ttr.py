@@ -35,6 +35,18 @@ _DAY_MONTH_NAME_RE = re.compile(
     r"september|october|november|december"
     r"),?\s+(20\d{2})\b"
 )
+_MONTH_NAME_NO_YEAR_RE = re.compile(
+    r"\b("
+    r"january|february|march|april|may|june|july|august|"
+    r"september|october|november|december"
+    r")\s+([0-3]?\d)\b"
+)
+_DAY_MONTH_NAME_NO_YEAR_RE = re.compile(
+    r"\b([0-3]?\d)\s+("
+    r"january|february|march|april|may|june|july|august|"
+    r"september|october|november|december"
+    r")\b"
+)
 _MONTH_TO_INT: dict[str, int] = {
     "january": 1,
     "february": 2,
@@ -73,7 +85,11 @@ _NESTED_PAYLOAD_KEYS: tuple[str, ...] = (
 )
 
 
-def estimate_resolution_ts(market_payload: Mapping[str, Any]) -> datetime | None:
+def estimate_resolution_ts(
+    market_payload: Mapping[str, Any],
+    *,
+    decision_ts: datetime | None = None,
+) -> datetime | None:
     for key in _RESOLUTION_KEYS:
         parsed = _parse_datetime(market_payload.get(key))
         if parsed is not None:
@@ -89,7 +105,10 @@ def estimate_resolution_ts(market_payload: Mapping[str, Any]) -> datetime | None
                 return parsed
 
     for key in _TEXT_KEYS:
-        parsed = _extract_date_from_text(market_payload.get(key))
+        parsed = _extract_date_from_text(
+            market_payload.get(key),
+            decision_ts=decision_ts,
+        )
         if parsed is not None:
             return parsed
 
@@ -98,7 +117,7 @@ def estimate_resolution_ts(market_payload: Mapping[str, Any]) -> datetime | None
 
 def estimate_ttr_bucket(market_payload: Mapping[str, Any], decision_ts: datetime) -> TtrBucket:
     decision = _as_utc_datetime(decision_ts)
-    resolution_ts = estimate_resolution_ts(market_payload)
+    resolution_ts = estimate_resolution_ts(market_payload, decision_ts=decision)
     if resolution_ts is None:
         status = _as_text(market_payload.get("status")) or ""
         if status.lower() in {"resolved", "closed", "ended"}:
@@ -110,7 +129,7 @@ def estimate_ttr_bucket(market_payload: Mapping[str, Any], decision_ts: datetime
         return BUCKET_0_24H
     if delta_seconds <= 7 * 24 * 3600:
         return BUCKET_1_7D
-    if delta_seconds <= 30 * 24 * 3600:
+    if delta_seconds <= 45 * 24 * 3600:
         return BUCKET_7_30D
     return BUCKET_30D_PLUS
 
@@ -164,7 +183,11 @@ def _parse_unix_text(text: str) -> datetime | None:
     return _parse_unix_timestamp(numeric)
 
 
-def _extract_date_from_text(raw: Any) -> datetime | None:
+def _extract_date_from_text(
+    raw: Any,
+    *,
+    decision_ts: datetime | None = None,
+) -> datetime | None:
     text = _as_text(raw)
     if text is None:
         return None
@@ -195,6 +218,33 @@ def _extract_date_from_text(raw: Any) -> datetime | None:
             month = month_opt
             return _build_date(year, month, day)
 
+    if decision_ts is None:
+        return None
+
+    month_name_no_year = _MONTH_NAME_NO_YEAR_RE.search(lowered)
+    if month_name_no_year is not None:
+        month_opt = _MONTH_TO_INT.get(month_name_no_year.group(1))
+        day = int(month_name_no_year.group(2))
+        if month_opt is not None:
+            month = month_opt
+            return _build_month_day_without_year(
+                decision_ts=decision_ts,
+                month=month,
+                day=day,
+            )
+
+    day_month_no_year = _DAY_MONTH_NAME_NO_YEAR_RE.search(lowered)
+    if day_month_no_year is not None:
+        day = int(day_month_no_year.group(1))
+        month_opt = _MONTH_TO_INT.get(day_month_no_year.group(2))
+        if month_opt is not None:
+            month = month_opt
+            return _build_month_day_without_year(
+                decision_ts=decision_ts,
+                month=month,
+                day=day,
+            )
+
     return None
 
 
@@ -203,6 +253,26 @@ def _build_date(year: int, month: int, day: int) -> datetime | None:
         return datetime(year, month, day, tzinfo=UTC)
     except ValueError:
         return None
+
+
+def _build_month_day_without_year(
+    *,
+    decision_ts: datetime,
+    month: int,
+    day: int,
+) -> datetime | None:
+    decision = _as_utc_datetime(decision_ts)
+    candidate = _build_date(decision.year, month, day)
+    if candidate is None:
+        return None
+    if candidate < decision:
+        candidate = _build_date(decision.year + 1, month, day)
+        if candidate is None:
+            return None
+    max_delta_seconds = 400 * 24 * 3600
+    if (candidate - decision).total_seconds() > max_delta_seconds:
+        return None
+    return candidate
 
 
 def _as_text(raw: Any) -> str | None:
