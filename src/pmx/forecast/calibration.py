@@ -4,6 +4,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass
+from typing import Any
 
 from pmx.backtest.metrics import calibration_bins
 
@@ -145,14 +146,24 @@ def calibration_report(
     raw_probabilities: list[float],
     calibrated_probabilities: list[float],
     n_bins: int = 10,
-) -> dict[str, object]:
-    raw_bins = calibration_bins(labels, raw_probabilities, n_bins=n_bins)
-    calibrated_bins = calibration_bins(labels, calibrated_probabilities, n_bins=n_bins)
-    return {
+) -> dict[str, Any]:
+    raw_report = _single_calibration_report(
+        labels=labels,
+        probabilities=raw_probabilities,
+        n_bins=n_bins,
+    )
+    calibrated_report = _single_calibration_report(
+        labels=labels,
+        probabilities=calibrated_probabilities,
+        n_bins=n_bins,
+    )
+    payload: dict[str, Any] = {
         "n_bins": n_bins,
-        "raw_bins": [item.as_dict() for item in raw_bins],
-        "calibrated_bins": [item.as_dict() for item in calibrated_bins],
+        "raw": raw_report,
+        "calibrated": calibrated_report,
     }
+    payload["report_hash"] = _stable_hash(payload)
+    return payload
 
 
 def calibrator_hash(calibrator: Calibrator) -> str:
@@ -177,6 +188,65 @@ class _IsoBlock:
 def _validate_inputs(probabilities: list[float], labels: list[int]) -> None:
     if len(probabilities) != len(labels):
         raise ValueError("probabilities and labels must have same length")
+
+
+def _single_calibration_report(
+    *,
+    labels: list[int],
+    probabilities: list[float],
+    n_bins: int,
+) -> dict[str, Any]:
+    _validate_inputs(probabilities, labels)
+    bins = calibration_bins(labels, probabilities, n_bins=n_bins)
+    total = len(labels)
+
+    brier_sum = 0.0
+    nll_sum = 0.0
+    for y_value, p_value in zip(labels, probabilities, strict=True):
+        probability = _clamp(float(p_value), 0.0, 1.0)
+        y_float = float(y_value)
+        brier_sum += (probability - y_float) ** 2
+        nll_sum += -(
+            y_float * math.log(_clamp(probability, EPS, 1.0 - EPS))
+            + (1.0 - y_float) * math.log(_clamp(1.0 - probability, EPS, 1.0 - EPS))
+        )
+
+    bin_payload: list[dict[str, float | int]] = []
+    ece = 0.0
+    mce = 0.0
+    for bucket in bins:
+        diff = abs(bucket.mean_pred - bucket.mean_true)
+        if total > 0:
+            ece += diff * (bucket.count / total)
+        if diff > mce:
+            mce = diff
+        bin_payload.append(
+            {
+                "index": int(bucket.index),
+                "lower": round(float(bucket.lower), 8),
+                "upper": round(float(bucket.upper), 8),
+                "count": int(bucket.count),
+                "avg_pred": round(float(bucket.mean_pred), 8),
+                "emp_freq": round(float(bucket.mean_true), 8),
+            }
+        )
+
+    metrics = {
+        "n_eval": total,
+        "ece": ece,
+        "mce": mce,
+        "brier": (brier_sum / total) if total > 0 else 0.0,
+        "nll": (nll_sum / total) if total > 0 else 0.0,
+    }
+    return {
+        "bins": bin_payload,
+        "metrics": metrics,
+    }
+
+
+def _stable_hash(payload: object) -> str:
+    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def _logit(value: float) -> float:

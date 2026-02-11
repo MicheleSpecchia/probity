@@ -30,6 +30,9 @@ class ForecastBaselineEnsembleConfig:
     min_isotonic_samples: int
     min_conformal_samples: int
     driver_top_k: int
+    calibration_n_bins: int
+    calibration_min_eval: int
+    calibration_ece_threshold: float
     model_version: str = MODEL_VERSION
 
     def as_hash_dict(self) -> dict[str, Any]:
@@ -40,6 +43,9 @@ class ForecastBaselineEnsembleConfig:
             "min_isotonic_samples": self.min_isotonic_samples,
             "min_conformal_samples": self.min_conformal_samples,
             "driver_top_k": self.driver_top_k,
+            "calibration_n_bins": self.calibration_n_bins,
+            "calibration_min_eval": self.calibration_min_eval,
+            "calibration_ece_threshold": self.calibration_ece_threshold,
             "model_version": self.model_version,
         }
 
@@ -53,6 +59,9 @@ def main(argv: list[str] | None = None) -> int:
         min_isotonic_samples=args.min_isotonic_samples,
         min_conformal_samples=args.min_conformal_samples,
         driver_top_k=args.driver_top_k,
+        calibration_n_bins=args.calibration_n_bins,
+        calibration_min_eval=args.calibration_min_eval,
+        calibration_ece_threshold=args.calibration_ece_threshold,
     )
     from_ts = _parse_required_datetime_arg(args.from_ts, "--from")
     to_ts = _parse_required_datetime_arg(args.to_ts, "--to")
@@ -149,6 +158,9 @@ def run_forecast_baseline_ensemble(
         min_isotonic_samples=config.min_isotonic_samples,
         min_conformal_samples=config.min_conformal_samples,
         driver_top_k=config.driver_top_k,
+        calibration_n_bins=config.calibration_n_bins,
+        calibration_min_eval=config.calibration_min_eval,
+        calibration_ece_threshold=config.calibration_ece_threshold,
     )
     artifact = {
         "run_id": run_context.run_id,
@@ -175,6 +187,9 @@ def run_forecast_baseline_ensemble(
         },
         "metrics": pipeline.metrics,
         "interval_report": pipeline.interval_report,
+        "calibration_report": pipeline.calibration_report,
+        "quality_flags": list(pipeline.quality_flags),
+        "quality_warnings": list(pipeline.quality_warnings),
         "calibration_windows": [window.as_dict() for window in pipeline.calibration_windows],
         "forecasts": [record.as_dict() for record in pipeline.forecasts],
     }
@@ -188,6 +203,7 @@ def run_forecast_baseline_ensemble(
         forecasts=len(pipeline.forecasts),
         brier_raw=pipeline.metrics["raw"].get("brier", 0.0),
         brier_cal=pipeline.metrics["calibrated"].get("brier", 0.0),
+        quality_flags=list(pipeline.quality_flags),
     )
     artifact["artifact_path"] = str(artifact_path)
     return artifact
@@ -201,6 +217,9 @@ def load_forecast_baseline_ensemble_config(
     min_isotonic_samples: int | None,
     min_conformal_samples: int | None,
     driver_top_k: int | None,
+    calibration_n_bins: int | None,
+    calibration_min_eval: int | None,
+    calibration_ece_threshold: float | None,
 ) -> ForecastBaselineEnsembleConfig:
     resolved_feature_set = feature_set or os.getenv("FORECAST_FEATURE_SET") or "micro_v1"
     if epsilon_seconds is not None:
@@ -216,6 +235,17 @@ def load_forecast_baseline_ensemble_config(
     resolved_min_isotonic = _resolve_positive("min_isotonic_samples", min_isotonic_samples, 30)
     resolved_min_conformal = _resolve_positive("min_conformal_samples", min_conformal_samples, 20)
     resolved_driver_top_k = _resolve_positive("driver_top_k", driver_top_k, 5)
+    resolved_calibration_n_bins = _resolve_positive("calibration_n_bins", calibration_n_bins, 10)
+    resolved_calibration_min_eval = _resolve_positive(
+        "calibration_min_eval",
+        calibration_min_eval,
+        40,
+    )
+    resolved_calibration_ece_threshold = _resolve_probability(
+        "calibration_ece_threshold",
+        calibration_ece_threshold,
+        0.08,
+    )
     return ForecastBaselineEnsembleConfig(
         feature_set=resolved_feature_set,
         ingest_epsilon_seconds=resolved_epsilon,
@@ -223,6 +253,9 @@ def load_forecast_baseline_ensemble_config(
         min_isotonic_samples=resolved_min_isotonic,
         min_conformal_samples=resolved_min_conformal,
         driver_top_k=resolved_driver_top_k,
+        calibration_n_bins=resolved_calibration_n_bins,
+        calibration_min_eval=resolved_calibration_min_eval,
+        calibration_ece_threshold=resolved_calibration_ece_threshold,
     )
 
 
@@ -232,6 +265,14 @@ def _resolve_positive(name: str, value: int | None, default: int) -> int:
     if value <= 0:
         raise ValueError(f"{name} must be > 0")
     return value
+
+
+def _resolve_probability(name: str, value: float | None, default: float) -> float:
+    if value is None:
+        return default
+    if value < 0.0 or value > 1.0:
+        raise ValueError(f"{name} must be in [0,1]")
+    return float(value)
 
 
 def _write_artifact(artifacts_root: str, run_id: str, artifact: dict[str, Any]) -> Path:
@@ -354,6 +395,24 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         type=int,
         default=5,
         help="Max number of deterministic top drivers per forecast.",
+    )
+    parser.add_argument(
+        "--calibration-n-bins",
+        type=int,
+        default=10,
+        help="Number of deterministic calibration bins in artifact report.",
+    )
+    parser.add_argument(
+        "--calibration-min-eval",
+        type=int,
+        default=40,
+        help="Minimum eval samples before calibration gate passes.",
+    )
+    parser.add_argument(
+        "--calibration-ece-threshold",
+        type=float,
+        default=0.08,
+        help="ECE threshold for soft calibration quality gate.",
     )
     return parser.parse_args(argv)
 

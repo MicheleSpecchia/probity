@@ -11,6 +11,7 @@ from pmx.backtest.asof_dataset import Example
 from pmx.backtest.metrics import aggregate_metrics
 from pmx.forecast.calibration import (
     Calibrator,
+    calibration_report,
     calibrate_probabilities,
     calibrator_hash,
     fit_calibrator,
@@ -89,6 +90,9 @@ class ForecastRunResult:
     forecasts: tuple[ForecastRecord, ...]
     metrics: dict[str, Any]
     interval_report: dict[str, float]
+    calibration_report: dict[str, Any]
+    quality_flags: tuple[str, ...]
+    quality_warnings: tuple[str, ...]
     dataset_hash: str
     model_hash: str
     calibration_hash: str
@@ -102,6 +106,9 @@ class ForecastRunResult:
             "forecasts": [item.as_dict() for item in self.forecasts],
             "metrics": self.metrics,
             "interval_report": self.interval_report,
+            "calibration_report": self.calibration_report,
+            "quality_flags": list(self.quality_flags),
+            "quality_warnings": list(self.quality_warnings),
             "dataset_hash": self.dataset_hash,
             "model_hash": self.model_hash,
             "calibration_hash": self.calibration_hash,
@@ -146,6 +153,9 @@ def run_forecast_pipeline(
     min_isotonic_samples: int = 30,
     min_conformal_samples: int = 20,
     driver_top_k: int = 5,
+    calibration_n_bins: int = 10,
+    calibration_min_eval: int = 40,
+    calibration_ece_threshold: float = 0.08,
 ) -> ForecastRunResult:
     ordered_examples = tuple(
         sorted(
@@ -158,10 +168,25 @@ def run_forecast_pipeline(
             "raw": aggregate_metrics([], []),
             "calibrated": aggregate_metrics([], []),
         }
+        empty_calibration_report = calibration_report(
+            labels=[],
+            raw_probabilities=[],
+            calibrated_probabilities=[],
+            n_bins=calibration_n_bins,
+        )
+        empty_quality_flags = evaluate_calibration_quality_gates(
+            n_eval=0,
+            calibrated_ece=0.0,
+            min_eval=calibration_min_eval,
+            ece_threshold=calibration_ece_threshold,
+        )
         return ForecastRunResult(
             forecasts=(),
             metrics=empty_metrics,
             interval_report=_empty_interval_report(),
+            calibration_report=empty_calibration_report,
+            quality_flags=empty_quality_flags,
+            quality_warnings=_quality_warnings(empty_quality_flags),
             dataset_hash=_stable_hash([]),
             model_hash=build_model_hash(),
             calibration_hash=_stable_hash([]),
@@ -237,6 +262,21 @@ def run_forecast_pipeline(
         "calibrated": aggregate_metrics(labels_all, calibrated_all),
     }
     interval_report = _interval_report(forecasts_with_label)
+    calibration_summary = calibration_report(
+        labels=labels_all,
+        raw_probabilities=raw_all,
+        calibrated_probabilities=calibrated_all,
+        n_bins=calibration_n_bins,
+    )
+    calibrated_metrics = calibration_summary["calibrated"]["metrics"]
+    n_eval = int(calibrated_metrics.get("n_eval", 0))
+    calibrated_ece = _as_float(calibrated_metrics.get("ece"), default=0.0)
+    quality_flags = evaluate_calibration_quality_gates(
+        n_eval=n_eval,
+        calibrated_ece=calibrated_ece,
+        min_eval=calibration_min_eval,
+        ece_threshold=calibration_ece_threshold,
+    )
 
     dataset_hash = _dataset_hash(ordered_examples)
     model_hash = build_model_hash()
@@ -267,6 +307,9 @@ def run_forecast_pipeline(
         forecasts=forecasts,
         metrics=metrics,
         interval_report=interval_report,
+        calibration_report=calibration_summary,
+        quality_flags=quality_flags,
+        quality_warnings=_quality_warnings(quality_flags),
         dataset_hash=dataset_hash,
         model_hash=model_hash,
         calibration_hash=calibration_hash_value,
@@ -302,6 +345,21 @@ def infer_no_trade_flags(features: dict[str, Any]) -> tuple[str, ...]:
         flags.add("stale")
 
     return tuple(sorted(flags))
+
+
+def evaluate_calibration_quality_gates(
+    *,
+    n_eval: int,
+    calibrated_ece: float,
+    min_eval: int,
+    ece_threshold: float,
+) -> tuple[str, ...]:
+    flags: list[str] = []
+    if n_eval < min_eval:
+        flags.append("insufficient_calibration_data")
+    if calibrated_ece > ece_threshold:
+        flags.append("poor_calibration")
+    return tuple(flags)
 
 
 def _fit_window_models(
@@ -377,6 +435,18 @@ def _empty_interval_report() -> dict[str, float]:
         "sharpness_50": 0.0,
         "sharpness_90": 0.0,
     }
+
+
+def _quality_warnings(flags: Sequence[str]) -> tuple[str, ...]:
+    messages: list[str] = []
+    for flag in flags:
+        if flag == "insufficient_calibration_data":
+            messages.append("Calibration quality gate: insufficient eval sample size.")
+        elif flag == "poor_calibration":
+            messages.append("Calibration quality gate: calibrated ECE above threshold.")
+        else:
+            messages.append(f"Calibration quality gate: {flag}")
+    return tuple(messages)
 
 
 def _dataset_hash(examples: Sequence[Example]) -> str:

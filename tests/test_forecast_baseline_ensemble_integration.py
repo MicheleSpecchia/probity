@@ -163,6 +163,9 @@ def test_forecast_baseline_ensemble_is_asof_safe_and_deterministic(
         min_isotonic_samples=30,
         min_conformal_samples=20,
         driver_top_k=5,
+        calibration_n_bins=10,
+        calibration_min_eval=40,
+        calibration_ece_threshold=0.08,
     )
     artifact_a = run_forecast_baseline_ensemble(
         config=config,
