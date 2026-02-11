@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Literal, Sequence
+from typing import Literal
 
 from pmx.news.normalize import sha256_hex
 
