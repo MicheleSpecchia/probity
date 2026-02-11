@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -10,6 +10,7 @@ import psycopg
 
 from pmx.selector.spec import (
     SelectorConfig,
+    compute_deep_score,
     compute_screen_score,
     liquidity_quality_from_features,
 )
@@ -46,6 +47,11 @@ class CandidateScore:
     flags: tuple[str, ...]
     penalties: dict[str, float]
     include_reasons: tuple[str, ...]
+    deep_score: float = 0.0
+    deep_components: dict[str, float] = field(default_factory=dict)
+    deep_flags: tuple[str, ...] = ()
+    deep_penalties: dict[str, float] = field(default_factory=dict)
+    deep_reason_hash: str = ""
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -62,6 +68,11 @@ class CandidateScore:
             "flags": list(self.flags),
             "penalties": self.penalties,
             "include_reasons": list(self.include_reasons),
+            "deep_score": self.deep_score,
+            "deep_components": self.deep_components,
+            "deep_flags": list(self.deep_flags),
+            "deep_penalties": self.deep_penalties,
+            "deep_reason_hash": self.deep_reason_hash,
         }
 
 
@@ -180,6 +191,11 @@ def compute_scores(
             market_payload=candidate.market_payload,
             config=cfg,
         )
+        deep_result = compute_deep_score(
+            score_result=result,
+            ttr_bucket=candidate.ttr_bucket,
+            price_prob=price_prob,
+        )
         scored.append(
             CandidateScore(
                 market_id=candidate.market_id,
@@ -195,6 +211,11 @@ def compute_scores(
                 flags=result.flags,
                 penalties=result.penalties,
                 include_reasons=candidate.include_reasons,
+                deep_score=deep_result.deep_score,
+                deep_components=deep_result.components,
+                deep_flags=deep_result.flags,
+                deep_penalties=deep_result.penalties,
+                deep_reason_hash=deep_result.reason_hash,
             )
         )
     return sorted(
@@ -202,6 +223,18 @@ def compute_scores(
         key=lambda item: (
             -item.screen_score,
             -item.lq,
+            -item.volume_24h,
+            item.market_id,
+        ),
+    )
+
+
+def compute_deep_scores(scored: Sequence[CandidateScore]) -> list[CandidateScore]:
+    return sorted(
+        scored,
+        key=lambda item: (
+            -item.deep_score,
+            -item.screen_score,
             -item.volume_24h,
             item.market_id,
         ),

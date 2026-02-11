@@ -16,7 +16,9 @@ class CandidateScoreRow:
     market_id: str
     token_id: str
     screen_score: float
+    deep_score: float
     components_json: dict[str, Any]
+    deep_components_json: dict[str, Any]
     flags_json: dict[str, Any]
     ttr_bucket: str
     category: str
@@ -28,6 +30,8 @@ class SelectorRepository:
         self.connection = connection
         self._candidate_table_checked = False
         self._candidate_table_exists = False
+        self._candidate_deep_columns_checked = False
+        self._candidate_deep_columns_exists = False
         self._candidate_fallback: dict[int, list[dict[str, Any]]] = {}
 
     def insert_run(
@@ -108,13 +112,60 @@ class SelectorRepository:
         market_id: str,
         token_id: str,
         screen_score: float,
+        deep_score: float,
         components_json: dict[str, Any],
+        deep_components_json: dict[str, Any],
         flags_json: dict[str, Any],
         ttr_bucket: str,
         category: str,
         group_id: str,
     ) -> None:
         if self._has_candidate_table():
+            if self._has_candidate_deep_columns():
+                with self.connection.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO selector_candidates (
+                            selection_run_id,
+                            market_id,
+                            token_id,
+                            screen_score,
+                            deep_score,
+                            components,
+                            deep_components,
+                            flags,
+                            ttr_bucket,
+                            category,
+                            group_id
+                        )
+                        VALUES (%s, %s, %s, %s, %s, %s::jsonb, %s::jsonb, %s::jsonb, %s, %s, %s)
+                        ON CONFLICT (selection_run_id, market_id) DO UPDATE
+                        SET token_id = EXCLUDED.token_id,
+                            screen_score = EXCLUDED.screen_score,
+                            deep_score = EXCLUDED.deep_score,
+                            components = EXCLUDED.components,
+                            deep_components = EXCLUDED.deep_components,
+                            flags = EXCLUDED.flags,
+                            ttr_bucket = EXCLUDED.ttr_bucket,
+                            category = EXCLUDED.category,
+                            group_id = EXCLUDED.group_id
+                        """,
+                        (
+                            selection_run_id,
+                            market_id,
+                            token_id,
+                            screen_score,
+                            deep_score,
+                            Jsonb(components_json),
+                            Jsonb(deep_components_json),
+                            Jsonb(flags_json),
+                            ttr_bucket,
+                            category,
+                            group_id,
+                        ),
+                    )
+                return
+
             with self.connection.cursor() as cursor:
                 cursor.execute(
                     """
@@ -160,7 +211,9 @@ class SelectorRepository:
                 "market_id": market_id,
                 "token_id": token_id,
                 "screen_score": round(screen_score, 6),
+                "deep_score": round(deep_score, 6),
                 "components_json": components_json,
+                "deep_components_json": deep_components_json,
                 "flags_json": flags_json,
                 "ttr_bucket": ttr_bucket,
                 "category": category,
@@ -237,6 +290,33 @@ class SelectorRepository:
         self._candidate_table_exists = bool(row and row[0] is not None)
         self._candidate_table_checked = True
         return self._candidate_table_exists
+
+    def _has_candidate_deep_columns(self) -> bool:
+        if self._candidate_deep_columns_checked:
+            return self._candidate_deep_columns_exists
+        if not self._has_candidate_table():
+            self._candidate_deep_columns_checked = True
+            self._candidate_deep_columns_exists = False
+            return False
+
+        with self.connection.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = 'selector_candidates'
+                  AND column_name IN ('deep_score', 'deep_components')
+                """
+            )
+            rows = cursor.fetchall()
+        columns = {str(row[0]) for row in rows}
+        self._candidate_deep_columns_exists = {
+            "deep_score",
+            "deep_components",
+        }.issubset(columns)
+        self._candidate_deep_columns_checked = True
+        return self._candidate_deep_columns_exists
 
 
 def _as_utc_datetime(value: datetime) -> datetime:

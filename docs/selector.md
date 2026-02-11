@@ -31,7 +31,37 @@ Hard flags:
 - `30d_plus`
 - `unknown`
 
-Estimated from `resolution_ts` / `resolved_ts` relative to `decision_ts` with deterministic fallback.
+Deterministic estimation pipeline:
+1. direct timestamps (in order): `resolution_ts`, `close_ts`, `end_ts`, `resolved_ts`
+2. nested payload keys (for example `metadata.*`, `raw.*`, `rule_parse_json.*`)
+3. regex date extraction from `question`, `title`, `slug`, `description`
+4. fallback `unknown` (or `0_24h` if status is already resolved/closed/ended)
+
+`estimate_resolution_ts(...)` is deterministic and timezone-normalized to UTC.
+
+## Deep-dive score (`deep_score`)
+After candidate constraints, deep-dive ranking uses `deep_score`:
+
+```text
+deep_score =
+  0.40*PQ + 0.25*VO + 0.15*DC + 0.10*TTR + 0.10*screen_score - penalties
+```
+
+Where:
+- `PQ`: entropy from as-of `price_prob`
+- `VO`: volatility/opportunity term
+- `DC`: data completeness
+- `TTR`: bucket opportunity prior (`0_24h` highest, `unknown` lowest)
+
+Penalties:
+- `illiquid` / `stale_data` -> `no_trade_candidate` hard penalty
+- ambiguity and missing-data penalties inherited from screen scoring
+
+Selection ordering is deterministic:
+1. `deep_score DESC`
+2. `screen_score DESC`
+3. `volume DESC`
+4. `market_id ASC`
 
 ## Constraints
 - Deterministic greedy ranking:
@@ -67,4 +97,12 @@ python -m pmx.jobs.select_markets `
   --epsilon-seconds 300 `
   --max-candidates 1500 `
   --k-deep 200
+```
+
+Selector-vs-baseline evaluation:
+```powershell
+python -m pmx.jobs.eval_selector `
+  --decision-ts 2026-02-11T12:00:00Z `
+  --epsilon-seconds 300 `
+  --window-hours 72
 ```

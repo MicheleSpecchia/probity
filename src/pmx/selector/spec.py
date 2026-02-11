@@ -33,6 +33,33 @@ class ScoreResult:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class DeepScoreResult:
+    deep_score: float
+    components: dict[str, float]
+    flags: tuple[str, ...]
+    penalties: dict[str, float]
+    reason_hash: str
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "deep_score": self.deep_score,
+            "components": self.components,
+            "flags": list(self.flags),
+            "penalties": self.penalties,
+            "reason_hash": self.reason_hash,
+        }
+
+
+_TTR_COMPONENT_BY_BUCKET: dict[str, float] = {
+    "0_24h": 1.00,
+    "1_7d": 0.85,
+    "7_30d": 0.55,
+    "30d_plus": 0.30,
+    "unknown": 0.25,
+}
+
+
 def compute_screen_score(
     *,
     features: dict[str, Any] | None,
@@ -91,6 +118,62 @@ def compute_screen_score(
 def liquidity_quality_from_features(features: dict[str, Any] | None) -> float:
     lq, _ = _liquidity_quality(dict(features or {}), SelectorConfig())
     return round(lq, 6)
+
+
+def compute_deep_score(
+    *,
+    score_result: ScoreResult,
+    ttr_bucket: str,
+    price_prob: float | None,
+) -> DeepScoreResult:
+    del price_prob
+    pq = score_result.components.get("pq", 0.0)
+    vo = score_result.components.get("vo", 0.0)
+    dc = score_result.components.get("dc", 0.0)
+    screen = score_result.screen_score
+    ttr_component = _ttr_component(ttr_bucket)
+
+    base_score = 0.40 * pq + 0.25 * vo + 0.15 * dc + 0.10 * ttr_component + 0.10 * screen
+
+    penalties: dict[str, float] = {}
+    if "illiquid" in score_result.flags or "stale_data" in score_result.flags:
+        penalties["no_trade_candidate"] = 1.0
+    ambiguous_rule = score_result.penalties.get("ambiguous_rule", 0.0)
+    if ambiguous_rule > 0:
+        penalties["ambiguous_rule"] = round(_clamp(ambiguous_rule * 0.75, 0.0, 0.30), 6)
+    if "missing_features" in score_result.penalties:
+        penalties["missing_features"] = 0.15
+    if "missing_price_prob" in score_result.penalties:
+        penalties["missing_price_prob"] = 0.15
+
+    penalty_sum = sum(penalties.values())
+    deep_score = round(_clamp(base_score - penalty_sum, 0.0, 1.0), 6)
+
+    flags: set[str] = set(score_result.flags)
+    if "no_trade_candidate" in penalties:
+        flags.add("no_trade_candidate")
+    components = {
+        "screen_score": round(screen, 6),
+        "pq": round(pq, 6),
+        "vo": round(vo, 6),
+        "dc": round(dc, 6),
+        "ttr": round(ttr_component, 6),
+        "penalty_sum": round(penalty_sum, 6),
+    }
+    ordered_flags = tuple(sorted(flags))
+    ordered_penalties = {key: penalties[key] for key in sorted(penalties.keys())}
+    reason_hash = _build_reason_hash(
+        components=components,
+        flags=ordered_flags,
+        penalties=ordered_penalties,
+    )
+    return DeepScoreResult(
+        deep_score=deep_score,
+        components=components,
+        flags=ordered_flags,
+        penalties=ordered_penalties,
+        reason_hash=reason_hash,
+    )
 
 
 def _liquidity_quality(
@@ -218,3 +301,8 @@ def _clamp(value: float, minimum: float, maximum: float) -> float:
     if value > maximum:
         return maximum
     return value
+
+
+def _ttr_component(bucket: str) -> float:
+    normalized = (bucket or "").strip()
+    return _TTR_COMPONENT_BY_BUCKET.get(normalized, _TTR_COMPONENT_BY_BUCKET["unknown"])

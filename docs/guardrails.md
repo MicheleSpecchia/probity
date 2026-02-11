@@ -67,6 +67,10 @@
   - primary selector (`selector_v1`)
   - baseline comparators (`baseline_top_volume`, `baseline_random_stratified`)
 - Baseline selectors are mandatory to monitor selection-bias drift.
+- A comparative evaluation report is mandatory for each decision cycle:
+  - selector vs both baselines on backtest metrics (`Brier`, `ECE`)
+  - output must be produced even when one selector set is missing
+    (`missing_selection` status in report).
 - Selector scoring is deterministic:
   - stable feature extraction order
   - stable tie-breaks (`score`, liquidity, volume, market_id)

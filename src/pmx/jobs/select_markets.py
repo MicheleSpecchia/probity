@@ -19,7 +19,12 @@ from pmx.audit.run_context import RunContext, build_run_context
 from pmx.db.db_helpers import get_database_url, to_psycopg_dsn
 from pmx.db.selector_repository import SelectorRepository
 from pmx.selector.baselines import deterministic_seed, select_random_stratified, select_top_volume
-from pmx.selector.compute import CandidateScore, build_candidate_set, compute_scores
+from pmx.selector.compute import (
+    CandidateScore,
+    build_candidate_set,
+    compute_deep_scores,
+    compute_scores,
+)
 from pmx.selector.constraints import DEFAULT_TARGET_BUCKET_MIX, enforce_constraints
 from pmx.selector.spec import SelectorConfig
 
@@ -134,7 +139,7 @@ def run_select_markets(
             max_per_category=config.max_per_category,
             max_per_group=config.max_per_group,
         )
-        selected_main = list(constrained.selected)
+        selected_main = compute_deep_scores(constrained.selected)
 
         selected_top_volume = select_top_volume(scored, k=config.k_deep)
         seed = deterministic_seed(decision, run_context.config_hash)
@@ -160,10 +165,16 @@ def run_select_markets(
                 market_id=candidate.market_id,
                 token_id=candidate.token_id,
                 screen_score=candidate.screen_score,
+                deep_score=candidate.deep_score,
                 components_json=candidate.components,
+                deep_components_json=candidate.deep_components,
                 flags_json={
                     "flags": list(candidate.flags),
                     "penalties": candidate.penalties,
+                    "deep_score": candidate.deep_score,
+                    "deep_components": candidate.deep_components,
+                    "deep_flags": list(candidate.deep_flags),
+                    "deep_penalties": candidate.deep_penalties,
                     "include_reasons": list(candidate.include_reasons),
                 },
                 ttr_bucket=candidate.ttr_bucket,
@@ -251,6 +262,11 @@ def run_select_markets(
                     Counter(flag for item in scored for flag in item.flags).items(),
                 )
             ),
+            "deep_flag_counts": dict(
+                sorted(
+                    Counter(flag for item in scored for flag in item.deep_flags).items(),
+                )
+            ),
             "selection_runs": {
                 "selector_v1": run_main,
                 "baseline_top_volume": run_top,
@@ -271,6 +287,7 @@ def run_select_markets(
         bucket_counts=summary["bucket_counts"],
         category_counts=summary["category_counts"],
         flag_counts=summary["flag_counts"],
+        deep_flag_counts=summary["deep_flag_counts"],
     )
     _write_job_artifact(config.artifacts_root, run_context.run_id, summary)
     return summary
@@ -328,12 +345,16 @@ def _persist_selected(
             rank=rank,
             market_id=item.market_id,
             token_id=item.token_id,
-            score=item.screen_score,
+            score=(item.deep_score if selector_version == SELECTOR_VERSION else item.screen_score),
             reason_json={
                 "ttr_bucket": item.ttr_bucket,
                 "category": item.category,
                 "group_id": item.group_id,
                 "components": item.components,
+                "deep_score": item.deep_score,
+                "deep_components": item.deep_components,
+                "deep_flags": list(item.deep_flags),
+                "deep_penalties": item.deep_penalties,
                 "flags": list(item.flags),
                 "include_reasons": list(item.include_reasons),
             },
@@ -366,6 +387,8 @@ def _candidate_record(item: Any) -> dict[str, Any]:
         "group_id": item.group_id,
         "ttr_bucket": item.ttr_bucket,
         "volume_24h": item.volume_24h,
+        "screen_score": item.screen_score,
+        "deep_score": item.deep_score,
         "include_reasons": list(item.include_reasons),
     }
 

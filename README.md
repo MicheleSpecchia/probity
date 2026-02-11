@@ -279,6 +279,7 @@ No real ingestion/model/backtest implementation is included in this milestone.
   ```
 - Selector outputs:
   - deterministic `selector_v1` deep-dive set
+    (final rank by `deep_score` after diversification constraints)
   - baseline comparator sets:
     - `baseline_top_volume`
     - `baseline_random_stratified`
@@ -286,6 +287,15 @@ No real ingestion/model/backtest implementation is included in this milestone.
   - writes `selection_runs` + `selection_items`
   - writes selector audit artifact in `artifacts/selector/<run_id>.json`
   - candidate score fallback artifact used if dedicated candidate table is absent.
+- Evaluate selector vs baselines:
+  ```powershell
+  python -m pmx.jobs.eval_selector `
+    --decision-ts 2026-02-11T12:00:00Z `
+    --epsilon-seconds 300 `
+    --window-hours 72
+  ```
+  - writes `artifacts/selector_eval/<run_id>.json` with comparative
+    `Brier`/`ECE` report for `selector_v1` and baselines.
 - See `docs/selector.md` for scoring components, bucket mix, and constraints.
 
 ## WSS protocol probe (no DB writes)

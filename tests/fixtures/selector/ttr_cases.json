@@ -1,0 +1,58 @@
+[
+  {
+    "name": "direct_resolution_ts",
+    "decision_ts": "2026-02-11T12:00:00Z",
+    "market_payload": {
+      "resolution_ts": "2026-02-11T18:00:00Z",
+      "status": "active"
+    },
+    "expected_bucket": "0_24h",
+    "expected_resolution_ts": "2026-02-11T18:00:00+00:00"
+  },
+  {
+    "name": "close_ts_epoch_seconds",
+    "decision_ts": "2026-01-11T12:00:00Z",
+    "market_payload": {
+      "close_ts": 1768670400
+    },
+    "expected_bucket": "1_7d",
+    "expected_resolution_ts": "2026-01-17T17:20:00+00:00"
+  },
+  {
+    "name": "slug_date_parse",
+    "decision_ts": "2026-01-01T00:00:00Z",
+    "market_payload": {
+      "slug": "will-candidate-win-by-2026-01-05"
+    },
+    "expected_bucket": "1_7d",
+    "expected_resolution_ts": "2026-01-05T00:00:00+00:00"
+  },
+  {
+    "name": "title_month_name_parse",
+    "decision_ts": "2026-02-01T00:00:00Z",
+    "market_payload": {
+      "title": "Will CPI exceed estimate by March 15, 2026?"
+    },
+    "expected_bucket": "7_30d",
+    "expected_resolution_ts": "2026-03-15T00:00:00+00:00"
+  },
+  {
+    "name": "unknown_active",
+    "decision_ts": "2026-02-11T12:00:00Z",
+    "market_payload": {
+      "title": "No explicit date in this market",
+      "status": "active"
+    },
+    "expected_bucket": "unknown",
+    "expected_resolution_ts": null
+  },
+  {
+    "name": "resolved_status_fallback",
+    "decision_ts": "2026-02-11T12:00:00Z",
+    "market_payload": {
+      "status": "resolved"
+    },
+    "expected_bucket": "0_24h",
+    "expected_resolution_ts": null
+  }
+]

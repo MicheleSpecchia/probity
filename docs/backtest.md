@@ -45,6 +45,22 @@ python -m pmx.jobs.backtest_baselines `
     - `skipped_missing_features`
     - `skipped_missing_price`
 
+## Selector bias evaluation report
+- Selector comparison job:
+  ```powershell
+  python -m pmx.jobs.eval_selector `
+    --decision-ts 2026-02-11T12:00:00Z `
+    --epsilon-seconds 300 `
+    --window-hours 72
+  ```
+- Output path: `artifacts/selector_eval/<run_id>.json`
+- Report includes, per selector version (`selector_v1`, `baseline_top_volume`,
+  `baseline_random_stratified`):
+  - sample counts and skip counters
+  - baseline A/B `Brier` and `ECE`
+  - `PQ` entropy distribution
+  - TTR bucket distribution
+
 ## Metric interpretation
 - `brier`: lower is better.
 - `ece`: lower is better calibration.
