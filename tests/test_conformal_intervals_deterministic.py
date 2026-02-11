@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import pytest
-
 from pmx.forecast.uncertainty import build_intervals, fit_split_conformal, interval_quality_report
 
 

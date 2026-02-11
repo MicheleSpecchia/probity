@@ -48,7 +48,7 @@ def fit_split_conformal(
         )
 
     n = len(labels)
-    calibration_count = max(min_calibration, int(math.ceil(n * calibration_fraction)))
+    calibration_count = max(min_calibration, math.ceil(n * calibration_fraction))
     calibration_count = min(calibration_count, n)
     start_idx = n - calibration_count
 
@@ -126,7 +126,7 @@ def conformal_hash(model: ConformalIntervalModel) -> str:
 def _empirical_quantile(values: list[float], *, level: float) -> float:
     if not values:
         return 0.25 if level >= 0.9 else 0.10
-    rank = int(math.ceil(level * len(values))) - 1
+    rank = math.ceil(level * len(values)) - 1
     clamped_rank = max(0, min(rank, len(values) - 1))
     return _clamp(values[clamped_rank], 0.0, 1.0)
 
