@@ -1,0 +1,38 @@
+{
+  "schema_version": "claim_extract.v1",
+  "market_id": "market-election-2026",
+  "generated_at": "2026-02-11T08:00:00Z",
+  "claims": [
+    {
+      "claim_text": "Election officials will certify the final result by January 15, 2027.",
+      "stance": "support",
+      "confidence": 0.81,
+      "sources": [
+        {
+          "url": "https://www.reuters.com/world/us/example-election-story",
+          "title": "Reuters election certification timeline",
+          "published_at": "2026-02-10T22:00:00Z"
+        },
+        {
+          "url": "https://apnews.com/article/election-certification-example",
+          "title": "AP certification explainer",
+          "published_at": "2026-02-10T23:30:00Z"
+        }
+      ]
+    }
+  ],
+  "canonical_claims": [
+    {
+      "claim_canonical": "Final election result certified by 2027-01-15",
+      "claim_hash": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "source_urls": [
+        "https://reuters.com/world/us/example-election-story",
+        "https://apnews.com/article/election-certification-example"
+      ],
+      "evidence_count": 2
+    }
+  ],
+  "meta": {
+    "extractor_version": "stub_v1"
+  }
+}

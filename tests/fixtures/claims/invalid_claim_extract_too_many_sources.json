@@ -1,0 +1,47 @@
+{
+  "schema_version": "claim_extract.v1",
+  "market_id": "market-election-2026",
+  "generated_at": "2026-02-11T08:00:00Z",
+  "claims": [
+    {
+      "claim_text": "Certification timeline has broad coverage.",
+      "stance": "support",
+      "confidence": 0.62,
+      "sources": [
+        {
+          "url": "https://example.com/a1"
+        },
+        {
+          "url": "https://example.com/a2"
+        },
+        {
+          "url": "https://example.com/a3"
+        },
+        {
+          "url": "https://example.com/a4"
+        },
+        {
+          "url": "https://example.com/a5"
+        },
+        {
+          "url": "https://example.com/a6"
+        },
+        {
+          "url": "https://example.com/a7"
+        },
+        {
+          "url": "https://example.com/a8"
+        },
+        {
+          "url": "https://example.com/a9"
+        },
+        {
+          "url": "https://example.com/a10"
+        },
+        {
+          "url": "https://example.com/a11"
+        }
+      ]
+    }
+  ]
+}

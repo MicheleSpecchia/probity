@@ -67,6 +67,22 @@
   - topK=5 with stable tie-break (`score DESC`, `market_id ASC`).
   - tokenization uses a fixed stopword list to avoid drift across runs.
 
+## LLM extractor contracts (schema-first)
+- LLM extraction outputs are contract-first and must validate before use:
+  - `schemas/claim_extract.v1.json`
+  - `schemas/evidence_checklist.v1.json`
+- Validation entrypoints:
+  - `pmx.claims.validate_claim_extract(payload)`
+  - `pmx.claims.validate_evidence_checklist(payload)`
+- Validation combines JSON schema + deterministic custom guardrails:
+  - max `80` raw claims per market payload
+  - max `25` canonical claims per market payload (when provided)
+  - max `10` source URLs per claim/checklist item
+  - duplicate source URLs inside one claim/checklist item are rejected
+- Payloads are canonicalized with stable key ordering before downstream use.
+- Invalid payloads are rejected with deterministic error tuples:
+  `code`, `path`, `reason`.
+
 ## CLOB ingestion semantics
 - `--since-ts` is inclusive and normalized to UTC before filtering:
   - trades: keep `event_ts >= since_ts`

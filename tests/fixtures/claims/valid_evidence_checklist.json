@@ -1,0 +1,25 @@
+{
+  "schema_version": "evidence_checklist.v1",
+  "market_id": "market-election-2026",
+  "generated_at": "2026-02-11T08:30:00Z",
+  "items": [
+    {
+      "item_id": "resolution_rule",
+      "statement": "Market resolves on official certification from election authorities.",
+      "status": "supported",
+      "sources": [
+        {
+          "url": "https://reuters.com/world/us/example-election-story",
+          "title": "Reuters certification article",
+          "published_at": "2026-02-10T22:00:00Z",
+          "quote": "Officials said certification follows statutory deadlines.",
+          "stance": "support"
+        }
+      ],
+      "resolution_aware": true
+    }
+  ],
+  "meta": {
+    "checklist_version": "v1"
+  }
+}

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pmx/evidence_checklist.v1.json",
+  "title": "PMX Evidence Checklist v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "market_id",
+    "generated_at",
+    "items"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "evidence_checklist.v1"
+    },
+    "market_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/checklist_item"
+      }
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "url"
+      ],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "minLength": 1,
+          "maxLength": 4096
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "published_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "quote": {
+          "type": "string",
+          "maxLength": 4000
+        },
+        "stance": {
+          "type": "string",
+          "enum": [
+            "support",
+            "oppose",
+            "neutral",
+            "unknown"
+          ]
+        }
+      }
+    },
+    "checklist_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "statement",
+        "status",
+        "sources"
+      ],
+      "properties": {
+        "item_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 4000
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "supported",
+            "contradicted",
+            "insufficient",
+            "unknown"
+          ]
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "resolution_aware": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
