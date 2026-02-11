@@ -191,17 +191,17 @@ def _resolve_selection_runs(
         )
         rows = cursor.fetchall()
 
-    out: dict[str, SelectionRunInfo] = {}
+    run_infos: dict[str, SelectionRunInfo] = {}
     for row in rows:
         version = str(row[0])
-        if version in out:
+        if version in run_infos:
             continue
-        out[version] = SelectionRunInfo(
+        run_infos[version] = SelectionRunInfo(
             selector_version=version,
             selection_run_id=int(row[1]),
             decision_ts=_as_utc_datetime(row[2]),
         )
-    return out
+    return run_infos
 
 
 def _load_selected_tokens(conn: psycopg.Connection, selection_run_id: int) -> list[SelectedToken]:

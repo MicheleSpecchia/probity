@@ -179,18 +179,20 @@ def _extract_date_from_text(raw: Any) -> datetime | None:
 
     month_match = _MONTH_NAME_RE.search(lowered)
     if month_match is not None:
-        month = _MONTH_TO_INT.get(month_match.group(1))
+        month_opt = _MONTH_TO_INT.get(month_match.group(1))
         day = int(month_match.group(2))
         year = int(month_match.group(3))
-        if month is not None:
+        if month_opt is not None:
+            month = month_opt
             return _build_date(year, month, day)
 
     day_month_match = _DAY_MONTH_NAME_RE.search(lowered)
     if day_month_match is not None:
         day = int(day_month_match.group(1))
-        month = _MONTH_TO_INT.get(day_month_match.group(2))
+        month_opt = _MONTH_TO_INT.get(day_month_match.group(2))
         year = int(day_month_match.group(3))
-        if month is not None:
+        if month_opt is not None:
+            month = month_opt
             return _build_date(year, month, day)
 
     return None
