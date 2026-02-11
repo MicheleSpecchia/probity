@@ -321,3 +321,8 @@ Each forecast output is expected to include:
     - `conformal_degenerate_intervals`
     - `coverage_below_target_50`
     - `coverage_below_target_90`
+- Forecast artifact contract:
+  - `artifact_schema_version = "forecast_artifact.v1"`
+  - validate with `pmx.forecast.validate_artifact.validate_forecast_artifact(...)`
+  - `quality_warnings` entries must be objects with at least `code` field
+    (message/detail optional).

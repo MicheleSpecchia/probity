@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import hashlib
-import json
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
 from pmx.backtest.metrics import calibration_bins
+from pmx.forecast.canonical import canonical_hash
 
 EPS = 1e-6
 
@@ -162,13 +162,17 @@ def calibration_report(
         "raw": raw_report,
         "calibrated": calibrated_report,
     }
-    payload["report_hash"] = _stable_hash(payload)
+    payload["report_hash"] = calibration_report_hash(payload)
     return payload
 
 
 def calibrator_hash(calibrator: Calibrator) -> str:
-    serialized = json.dumps(calibrator.as_dict(), sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    return canonical_hash(calibrator.as_dict())
+
+
+def calibration_report_hash(report: Mapping[str, Any]) -> str:
+    materialized = {str(key): value for key, value in report.items() if str(key) != "report_hash"}
+    return canonical_hash(materialized)
 
 
 @dataclass(frozen=True, slots=True)
@@ -242,11 +246,6 @@ def _single_calibration_report(
         "bins": bin_payload,
         "metrics": metrics,
     }
-
-
-def _stable_hash(payload: object) -> str:
-    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
 
 
 def _logit(value: float) -> float:

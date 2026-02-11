@@ -29,12 +29,15 @@ python -m pmx.jobs.forecast_baseline_ensemble `
 ## Artifact
 - Path: `artifacts/forecasts/<run_id>.json`
 - Includes:
+  - schema/version:
+    - `artifact_schema_version = "forecast_artifact.v1"`
   - run metadata: `run_id`, `code_version`, `config_hash`
   - reproducibility hashes:
     - `dataset_hash`
     - `model_hash`
     - `calibration_hash`
     - `uncertainty_hash`
+    - `calibration_report_hash`
     - `uncertainty_report_hash`
     - `forecast_payload_hash`
   - per-forecast outputs:
@@ -47,6 +50,20 @@ python -m pmx.jobs.forecast_baseline_ensemble `
     - `uncertainty_report` with observed coverage/width by level (`0.5`, `0.9`)
     - sanity checks (`invalid_interval`, `degenerate_interval`, monotonic width check)
     - additive soft `quality_flags` / `quality_warnings` (no crash-only gates)
+  - artifact contract can be validated via:
+    - `pmx.forecast.validate_artifact.validate_forecast_artifact(...)`
+
+## Determinism policy
+- Canonical JSON hashing is centralized in `pmx.forecast.canonical`:
+  - sorted object keys
+  - stable separators
+  - float normalization with rounding to 6 decimals before hash
+- Quality metadata ordering:
+  - `quality_flags`: unique + sorted
+  - `quality_warnings`: sorted by `(code, message/detail)`
+- Report ordering:
+  - levels are fixed `[0.5, 0.9]`
+  - bins use deterministic index order.
 
 ## Interpretation
 - `p_raw`: uncalibrated ensemble probability.

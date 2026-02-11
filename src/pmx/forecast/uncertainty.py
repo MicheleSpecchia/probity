@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import hashlib
-import json
 import math
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
+
+from pmx.forecast.canonical import canonical_hash
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,13 +121,11 @@ def interval_quality_report(
 
 
 def conformal_hash(model: ConformalIntervalModel) -> str:
-    serialized = json.dumps(model.as_dict(), sort_keys=True, separators=(",", ":"))
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    return canonical_hash(model.as_dict())
 
 
 def uncertainty_report_hash(report: Mapping[str, Any]) -> str:
-    serialized = json.dumps(report, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    return canonical_hash(report)
 
 
 def uncertainty_coverage_report(
@@ -142,7 +140,7 @@ def uncertainty_coverage_report(
     tol: float = 0.05,
     degenerate_tol: float = 1e-12,
     degenerate_rate_threshold: float = 0.25,
-) -> tuple[dict[str, Any], tuple[str, ...], tuple[str, ...]]:
+) -> tuple[dict[str, Any], tuple[str, ...], tuple[dict[str, str], ...]]:
     aligned_n = min(len(preds), len(labels), len(intervals_50), len(intervals_90))
     aligned_labels = [int(labels[idx]) for idx in range(aligned_n)]
     aligned_intervals_50 = [intervals_50[idx] for idx in range(aligned_n)]
@@ -262,25 +260,55 @@ def uncertainty_coverage_report(
     }
 
     flags: list[str] = []
-    warnings: list[str] = []
+    warnings: list[dict[str, str]] = []
     if aligned_n < min_n:
         flags.append("insufficient_uncertainty_data")
-        warnings.append("Uncertainty report has insufficient sample size.")
+        warnings.append(
+            {
+                "code": "insufficient_uncertainty_data",
+                "message": "Uncertainty report has insufficient sample size.",
+            }
+        )
     if report["invalid_interval_count"] > 0:
         flags.append("conformal_invalid_intervals")
-        warnings.append("Conformal intervals include invalid entries.")
+        warnings.append(
+            {
+                "code": "conformal_invalid_intervals",
+                "message": "Conformal intervals include invalid entries.",
+            }
+        )
     degenerate_rate_max = max(level_50["degenerate_rate"], level_90["degenerate_rate"])
     if degenerate_rate_max > degenerate_rate_threshold:
         flags.append("conformal_degenerate_intervals")
-        warnings.append("Conformal intervals are frequently degenerate.")
+        warnings.append(
+            {
+                "code": "conformal_degenerate_intervals",
+                "message": "Conformal intervals are frequently degenerate.",
+            }
+        )
     if coverage_90 < (target_90 - tol):
         flags.append("coverage_below_target_90")
-        warnings.append("Observed 90% interval coverage below target.")
+        warnings.append(
+            {
+                "code": "coverage_below_target_90",
+                "message": "Observed 90% interval coverage below target.",
+            }
+        )
     if coverage_50 < (target_50 - tol):
         flags.append("coverage_below_target_50")
-        warnings.append("Observed 50% interval coverage below target.")
+        warnings.append(
+            {
+                "code": "coverage_below_target_50",
+                "message": "Observed 50% interval coverage below target.",
+            }
+        )
     if monotonic_violations["count"] > 0:
-        warnings.append("Found intervals with 90% width below 50% width.")
+        warnings.append(
+            {
+                "code": "monotonic_width_violation",
+                "message": "Found intervals with 90% width below 50% width.",
+            }
+        )
 
     return report, tuple(flags), tuple(warnings)
 

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import hashlib
-import json
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -9,14 +7,17 @@ from typing import Any
 
 from pmx.backtest.asof_dataset import Example
 from pmx.backtest.metrics import aggregate_metrics
+from pmx.forecast.canonical import canonical_hash
 from pmx.forecast.calibration import (
     Calibrator,
+    calibration_report_hash,
     calibrate_probabilities,
     calibration_report,
     calibrator_hash,
     fit_calibrator,
 )
 from pmx.forecast.models import build_model_hash, compute_probabilities, extract_top_drivers
+from pmx.forecast.quality import merge_quality_flags, merge_quality_warnings
 from pmx.forecast.uncertainty import (
     ConformalIntervalModel,
     build_intervals,
@@ -25,6 +26,8 @@ from pmx.forecast.uncertainty import (
     uncertainty_coverage_report,
     uncertainty_report_hash,
 )
+
+FORECAST_ARTIFACT_SCHEMA_VERSION = "forecast_artifact.v1"
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,12 +92,14 @@ class CalibrationWindow:
 
 @dataclass(frozen=True, slots=True)
 class ForecastRunResult:
+    artifact_schema_version: str
     forecasts: tuple[ForecastRecord, ...]
     metrics: dict[str, Any]
     interval_report: dict[str, float]
     calibration_report: dict[str, Any]
+    calibration_report_hash: str
     quality_flags: tuple[str, ...]
-    quality_warnings: tuple[str, ...]
+    quality_warnings: tuple[dict[str, str], ...]
     uncertainty_report: dict[str, Any]
     uncertainty_report_hash: str
     dataset_hash: str
@@ -107,10 +112,12 @@ class ForecastRunResult:
 
     def as_dict(self) -> dict[str, Any]:
         return {
+            "artifact_schema_version": self.artifact_schema_version,
             "forecasts": [item.as_dict() for item in self.forecasts],
             "metrics": self.metrics,
             "interval_report": self.interval_report,
             "calibration_report": self.calibration_report,
+            "calibration_report_hash": self.calibration_report_hash,
             "quality_flags": list(self.quality_flags),
             "quality_warnings": list(self.quality_warnings),
             "uncertainty_report": self.uncertainty_report,
@@ -207,17 +214,17 @@ def run_forecast_pipeline(
             degenerate_rate_threshold=uncertainty_degenerate_rate_threshold,
         )
         quality_flags = _merge_sorted_unique((*empty_quality_flags, *uncertainty_flags))
-        quality_warnings = _merge_sorted_unique(
-            (
-                *_calibration_quality_warnings(empty_quality_flags),
-                *uncertainty_warnings,
-            )
+        quality_warnings = merge_quality_warnings(
+            _calibration_quality_warnings(empty_quality_flags),
+            uncertainty_warnings,
         )
         return ForecastRunResult(
+            artifact_schema_version=FORECAST_ARTIFACT_SCHEMA_VERSION,
             forecasts=(),
             metrics=empty_metrics,
             interval_report=_empty_interval_report(),
             calibration_report=empty_calibration_report,
+            calibration_report_hash=calibration_report_hash(empty_calibration_report),
             quality_flags=quality_flags,
             quality_warnings=quality_warnings,
             uncertainty_report=empty_uncertainty_report,
@@ -324,11 +331,9 @@ def run_forecast_pipeline(
         degenerate_rate_threshold=uncertainty_degenerate_rate_threshold,
     )
     quality_flags = _merge_sorted_unique((*calibration_quality_flags, *uncertainty_flags))
-    quality_warnings = _merge_sorted_unique(
-        (
-            *_calibration_quality_warnings(calibration_quality_flags),
-            *uncertainty_warnings,
-        )
+    quality_warnings = merge_quality_warnings(
+        _calibration_quality_warnings(calibration_quality_flags),
+        uncertainty_warnings,
     )
 
     dataset_hash = _dataset_hash(ordered_examples)
@@ -355,12 +360,14 @@ def run_forecast_pipeline(
             for item in windows
         ]
     )
-    payload_hash = _stable_hash([item.as_dict() for item in forecasts])
+    payload_hash = canonical_hash([item.as_dict() for item in forecasts])
     return ForecastRunResult(
+        artifact_schema_version=FORECAST_ARTIFACT_SCHEMA_VERSION,
         forecasts=forecasts,
         metrics=metrics,
         interval_report=interval_report,
         calibration_report=calibration_summary,
+        calibration_report_hash=calibration_report_hash(calibration_summary),
         quality_flags=quality_flags,
         quality_warnings=quality_warnings,
         uncertainty_report=uncertainty_summary,
@@ -492,18 +499,28 @@ def _empty_interval_report() -> dict[str, float]:
     }
 
 
-def _calibration_quality_warnings(flags: Sequence[str]) -> tuple[str, ...]:
-    messages: list[str] = []
+def _calibration_quality_warnings(flags: Sequence[str]) -> tuple[dict[str, str], ...]:
+    messages: list[dict[str, str]] = []
     for flag in flags:
         if flag == "insufficient_calibration_data":
-            messages.append("Calibration quality gate: insufficient eval sample size.")
+            messages.append(
+                {
+                    "code": "insufficient_calibration_data",
+                    "message": "Calibration quality gate: insufficient eval sample size.",
+                }
+            )
         elif flag == "poor_calibration":
-            messages.append("Calibration quality gate: calibrated ECE above threshold.")
+            messages.append(
+                {
+                    "code": "poor_calibration",
+                    "message": "Calibration quality gate: calibrated ECE above threshold.",
+                }
+            )
     return tuple(messages)
 
 
 def _merge_sorted_unique(values: Sequence[str]) -> tuple[str, ...]:
-    return tuple(sorted({value for value in values if value}))
+    return merge_quality_flags(values)
 
 
 def _dataset_hash(examples: Sequence[Example]) -> str:
@@ -522,8 +539,7 @@ def _dataset_hash(examples: Sequence[Example]) -> str:
 
 
 def _stable_hash(payload: Any) -> str:
-    serialized = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    return canonical_hash(payload)
 
 
 def _as_float(raw: Any, *, default: float) -> float:

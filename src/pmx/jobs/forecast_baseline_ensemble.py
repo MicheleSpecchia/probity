@@ -163,6 +163,7 @@ def run_forecast_baseline_ensemble(
         calibration_ece_threshold=config.calibration_ece_threshold,
     )
     artifact = {
+        "artifact_schema_version": pipeline.artifact_schema_version,
         "run_id": run_context.run_id,
         "job_name": JOB_NAME,
         "model_version": config.model_version,
@@ -188,6 +189,7 @@ def run_forecast_baseline_ensemble(
         "metrics": pipeline.metrics,
         "interval_report": pipeline.interval_report,
         "calibration_report": pipeline.calibration_report,
+        "calibration_report_hash": pipeline.calibration_report_hash,
         "quality_flags": list(pipeline.quality_flags),
         "quality_warnings": list(pipeline.quality_warnings),
         "uncertainty_report": pipeline.uncertainty_report,

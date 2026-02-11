@@ -66,7 +66,7 @@ def test_uncertainty_report_invalid_intervals_flag() -> None:
 
     assert report["invalid_interval_count"] > 0
     assert "conformal_invalid_intervals" in flags
-    assert any("invalid" in message.lower() for message in warnings)
+    assert any("invalid" in warning["code"] for warning in warnings)
 
 
 def test_uncertainty_report_monotonic_violation_warning() -> None:
@@ -85,7 +85,11 @@ def test_uncertainty_report_monotonic_violation_warning() -> None:
 
     sanity_codes = [str(item["code"]) for item in report["sanity_checks"]]
     assert "monotonic_width_violation" in sanity_codes
-    assert any("90% width below 50% width" in warning for warning in warnings)
+    assert any(
+        warning["code"] == "monotonic_width_violation"
+        and "90% width below 50% width" in warning.get("message", "")
+        for warning in warnings
+    )
 
 
 def test_uncertainty_report_insufficient_data_flag() -> None:
@@ -99,7 +103,7 @@ def test_uncertainty_report_insufficient_data_flag() -> None:
 
     assert report["n_total"] == 2
     assert "insufficient_uncertainty_data" in flags
-    assert any("insufficient" in message.lower() for message in warnings)
+    assert any(warning["code"] == "insufficient_uncertainty_data" for warning in warnings)
 
 
 def test_uncertainty_report_degenerate_interval_flag() -> None:
