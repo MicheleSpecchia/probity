@@ -294,3 +294,20 @@ Each forecast output is expected to include:
 - Driver summary and resolution-aware evidence checklist.
 - No-trade flags with rationale.
 - Reproducibility metadata (`run_id`, `code_version`, `config_hash`, input snapshot references).
+
+## Forecast core v1 guardrails
+- Forecast pipeline must read examples only from the as-of dataset builder
+  (`pmx.backtest.asof_dataset`) to preserve leak prevention.
+- Each forecast run artifact must include:
+  - `dataset_hash`
+  - `model_hash`
+  - `calibration_hash`
+  - `uncertainty_hash`
+  - `forecast_payload_hash`
+- Calibration + uncertainty are walk-forward only:
+  - calibration window uses rows with `train_decision_ts < current_decision_ts`
+  - conformal split is deterministic by time order (no random split)
+- Interval quality is always reported in artifacts:
+  - `coverage_50`, `coverage_90`, `sharpness_50`, `sharpness_90`
+  - expected long-run target is approximate nominal coverage
+    (`coverage_50 ~= 0.50`, `coverage_90 ~= 0.90`) and must be monitored.

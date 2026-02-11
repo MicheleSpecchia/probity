@@ -268,6 +268,32 @@ No real ingestion/model/backtest implementation is included in this milestone.
     plus `dataset_hash`, `config_hash`, `code_version`, and skip counters.
 - See `docs/backtest.md` for details.
 
+## Forecast baseline ensemble v1 (calibrated + intervals)
+- Deterministic components:
+  - Baseline A (`p = price_prob`)
+  - Baseline B (deterministic logistic on `micro_v1`)
+  - Ensemble stacker (`p_raw`)
+  - Calibration (isotonic, Platt fallback)
+  - Split-conformal uncertainty intervals (`50/90`)
+- Run:
+  ```powershell
+  python -m pmx.jobs.forecast_baseline_ensemble `
+    --token-ids tokenA,tokenB `
+    --from 2026-01-01T00:00:00Z `
+    --to 2026-01-03T00:00:00Z `
+    --step-hours 4 `
+    --epsilon-seconds 300 `
+    --feature-set micro_v1 `
+    --max-tokens 200
+  ```
+- Artifact:
+  - `artifacts/forecasts/<run_id>.json`
+  - includes `p_raw`, `p_cal`, `interval_50`, `interval_90`, deterministic
+    `drivers`, `no_trade_flags`, and reproducibility hashes:
+    `dataset_hash`, `model_hash`, `calibration_hash`, `uncertainty_hash`,
+    `forecast_payload_hash`.
+- See `docs/forecast.md` for details.
+
 ## Market selector v1 (accuracy-first)
 - Run selector:
   ```powershell
@@ -334,6 +360,7 @@ src/pmx/
   jobs/
   news/
   features/
+  forecast/
   models/
   backtest/
   audit/
