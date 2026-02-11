@@ -97,6 +97,27 @@
     - `claims_raw=[]`
     - `errors=[{code,path,reason}, ...]`
 
+## Claim graph v1 (canonicalization + echo controls)
+- Input is validated claim payload (`claims_raw`) from schema v1.
+- Canonicalization is deterministic and capped:
+  - max `25` canonical claims per market (`canonicalize_claims(..., max_canonical=25)`).
+  - stable processing order:
+    `published_at_min ASC`, `domain_min ASC`, `claim_id ASC`.
+  - greedy clustering threshold:
+    token Jaccard similarity `>= 0.5`.
+- Canonical representative selection is deterministic:
+  - choose the shortest claim text in cluster, tie-break by `claim_id`.
+- Source aggregation rules:
+  - source URLs are canonicalized and deduped.
+  - max `10` primary sources retained per canonical claim.
+- Echo/diversity metrics per canonical claim:
+  - `unique_domains`
+  - `primary_domains`
+  - `diversity_score` in `[0,1]`
+  - `echo_penalty` in `[0,1]` (higher means stronger single-domain concentration).
+- Mapping output (`claim_id -> canonical_claim_id`) and dropped claim IDs
+  are deterministic and reproducible.
+
 ## CLOB ingestion semantics
 - `--since-ts` is inclusive and normalized to UTC before filtering:
   - trades: keep `event_ts >= since_ts`

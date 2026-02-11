@@ -1,0 +1,400 @@
+{
+  "claims_raw": [
+    {
+      "claim_id": 1,
+      "claim_text": "Candidate A will win election",
+      "stance": "support",
+      "sources": [
+        {
+          "url": "https://www.reuters.com/world/us/election-claim-a",
+          "published_at": "2026-02-11T10:00:00Z",
+          "source_type": "primary"
+        }
+      ]
+    },
+    {
+      "claim_id": 2,
+      "claim_text": "Election win for candidate A",
+      "stance": "support",
+      "sources": [
+        {
+          "url": "https://apnews.com/article/election-claim-a",
+          "published_at": "2026-02-11T10:05:00Z",
+          "source_type": "primary"
+        }
+      ]
+    },
+    {
+      "claim_id": 3,
+      "claim_text": "Candidate A will win election",
+      "stance": "support",
+      "sources": [
+        {
+          "url": "https://www.reuters.com/world/us/election-claim-a-followup",
+          "published_at": "2026-02-11T10:10:00Z",
+          "source_type": "primary"
+        }
+      ]
+    },
+    {
+      "claim_id": 4,
+      "claim_text": "uniquefact4",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example4.com/claim",
+          "published_at": "2026-02-11T11:04:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 5,
+      "claim_text": "uniquefact5",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example5.com/claim",
+          "published_at": "2026-02-11T11:05:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 6,
+      "claim_text": "uniquefact6",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example6.com/claim",
+          "published_at": "2026-02-11T11:06:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 7,
+      "claim_text": "uniquefact7",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example7.com/claim",
+          "published_at": "2026-02-11T11:07:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 8,
+      "claim_text": "uniquefact8",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example8.com/claim",
+          "published_at": "2026-02-11T11:08:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 9,
+      "claim_text": "uniquefact9",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example9.com/claim",
+          "published_at": "2026-02-11T11:09:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 10,
+      "claim_text": "uniquefact10",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example10.com/claim",
+          "published_at": "2026-02-11T11:10:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 11,
+      "claim_text": "uniquefact11",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example11.com/claim",
+          "published_at": "2026-02-11T11:11:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 12,
+      "claim_text": "uniquefact12",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example12.com/claim",
+          "published_at": "2026-02-11T11:12:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 13,
+      "claim_text": "uniquefact13",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example13.com/claim",
+          "published_at": "2026-02-11T11:13:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 14,
+      "claim_text": "uniquefact14",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example14.com/claim",
+          "published_at": "2026-02-11T11:14:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 15,
+      "claim_text": "uniquefact15",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example15.com/claim",
+          "published_at": "2026-02-11T11:15:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 16,
+      "claim_text": "uniquefact16",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example16.com/claim",
+          "published_at": "2026-02-11T11:16:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 17,
+      "claim_text": "uniquefact17",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example17.com/claim",
+          "published_at": "2026-02-11T11:17:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 18,
+      "claim_text": "uniquefact18",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example18.com/claim",
+          "published_at": "2026-02-11T11:18:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 19,
+      "claim_text": "uniquefact19",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example19.com/claim",
+          "published_at": "2026-02-11T11:19:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 20,
+      "claim_text": "uniquefact20",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example20.com/claim",
+          "published_at": "2026-02-11T11:20:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 21,
+      "claim_text": "uniquefact21",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example21.com/claim",
+          "published_at": "2026-02-11T11:21:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 22,
+      "claim_text": "uniquefact22",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example22.com/claim",
+          "published_at": "2026-02-11T11:22:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 23,
+      "claim_text": "uniquefact23",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example23.com/claim",
+          "published_at": "2026-02-11T11:23:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 24,
+      "claim_text": "uniquefact24",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example24.com/claim",
+          "published_at": "2026-02-11T11:24:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 25,
+      "claim_text": "uniquefact25",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example25.com/claim",
+          "published_at": "2026-02-11T11:25:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 26,
+      "claim_text": "uniquefact26",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example26.com/claim",
+          "published_at": "2026-02-11T11:26:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 27,
+      "claim_text": "uniquefact27",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example27.com/claim",
+          "published_at": "2026-02-11T11:27:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 28,
+      "claim_text": "uniquefact28",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example28.com/claim",
+          "published_at": "2026-02-11T11:28:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 29,
+      "claim_text": "uniquefact29",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example29.com/claim",
+          "published_at": "2026-02-11T11:29:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 30,
+      "claim_text": "uniquefact30",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example30.com/claim",
+          "published_at": "2026-02-11T11:30:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 31,
+      "claim_text": "uniquefact31",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example31.com/claim",
+          "published_at": "2026-02-11T11:31:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 32,
+      "claim_text": "uniquefact32",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example32.com/claim",
+          "published_at": "2026-02-11T11:32:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    },
+    {
+      "claim_id": 33,
+      "claim_text": "uniquefact33",
+      "stance": "unknown",
+      "sources": [
+        {
+          "url": "https://example33.com/claim",
+          "published_at": "2026-02-11T11:33:00Z",
+          "source_type": "secondary"
+        }
+      ]
+    }
+  ]
+}
