@@ -832,7 +832,7 @@ def _log(
     run_context: RunContext,
     **extra_fields: Any,
 ) -> None:
-    payload = run_context.as_log_context()
+    payload: dict[str, Any] = dict(run_context.as_log_context())
     payload["extra_fields"] = extra_fields
     logger.log(level, message, extra=payload)
 

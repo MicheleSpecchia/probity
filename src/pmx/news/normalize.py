@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib
 import re
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, overload
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 _TRACKING_PARAMS = {
@@ -84,6 +84,18 @@ def normalize_text(raw_text: str | None) -> str:
 def sha256_hex(raw_text: str | None) -> str:
     normalized = normalize_text(raw_text)
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+@overload
+def canonicalize_json(value: Mapping[str, Any]) -> dict[str, Any]: ...
+
+
+@overload
+def canonicalize_json(value: list[Any] | tuple[Any, ...]) -> list[Any]: ...
+
+
+@overload
+def canonicalize_json(value: Any) -> Any: ...
 
 
 def canonicalize_json(value: Any) -> Any:

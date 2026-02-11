@@ -363,10 +363,10 @@ def _retry_delay_seconds(
         try:
             retry_after = float(retry_after_header)
             if retry_after >= 0:
-                return retry_after
+                return float(retry_after)
         except ValueError:
             pass
 
     exponential = base_backoff_seconds * (2**attempt)
     deterministic_jitter = min(0.05 * (attempt + 1), 0.25)
-    return exponential + deterministic_jitter
+    return float(exponential + deterministic_jitter)

@@ -214,7 +214,15 @@ class ClobRestClient:
             c = _parse_optional_decimal(row.get("c") or row.get("close"), quant=_PRICE_QUANT)
             v = _parse_optional_decimal(row.get("v") or row.get("volume"), quant=_SIZE_QUANT)
 
-            if None in (start_ts, end_ts, o, h, low, c, v):
+            if (
+                start_ts is None
+                or end_ts is None
+                or o is None
+                or h is None
+                or low is None
+                or c is None
+                or v is None
+            ):
                 continue
             if since_bound is not None and start_ts < since_bound:
                 continue
@@ -516,10 +524,10 @@ def _retry_delay_seconds(
         try:
             retry_after = float(retry_after_header)
             if retry_after >= 0:
-                return retry_after
+                return float(retry_after)
         except ValueError:
             pass
 
     exponential = base_backoff_seconds * (2**attempt)
     deterministic_jitter = min(0.05 * (attempt + 1), 0.25)
-    return exponential + deterministic_jitter
+    return float(exponential + deterministic_jitter)

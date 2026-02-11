@@ -429,4 +429,4 @@ def _reconnect_delay_seconds(
 ) -> float:
     exponential = base_backoff_seconds * (2**attempt)
     deterministic_jitter = min(0.05 * (attempt + 1), 0.25)
-    return min(exponential + deterministic_jitter, max_backoff_seconds)
+    return float(min(exponential + deterministic_jitter, max_backoff_seconds))

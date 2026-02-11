@@ -193,7 +193,7 @@ class ClobReconciler:
         )
 
     def _log(self, level: int, message: str, **extra_fields: Any) -> None:
-        payload = self.run_context.as_log_context()
+        payload: dict[str, Any] = dict(self.run_context.as_log_context())
         payload["extra_fields"] = extra_fields
         self.logger.log(level, message, extra=payload)
 
