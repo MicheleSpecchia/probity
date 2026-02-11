@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from functools import cache
-from typing import Any, Final, cast
+from typing import Any, Final
 
 from jsonschema import Draft202012Validator, FormatChecker
 
@@ -115,7 +115,7 @@ def _to_canonical_object(payload: Any) -> dict[str, Any]:
             reason="Canonicalized payload root must be an object",
         )
         raise PayloadValidationError("payload", [issue])
-    return cast(dict[str, Any], canonical)
+    return canonical
 
 
 def _collect_schema_issues(
