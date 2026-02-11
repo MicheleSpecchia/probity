@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, ClassVar
@@ -116,46 +115,24 @@ class _FakeClobClient:
         ]
 
 
-def _is_clob_token_failed_log(record: Any) -> bool:
-    if record.msg == "clob_token_failed":
-        return True
-    message = record.getMessage()
-    if message == "clob_token_failed":
-        return True
-    try:
-        parsed = json.loads(message)
-    except (TypeError, ValueError):
-        parsed = None
-    if isinstance(parsed, dict) and parsed.get("msg") == "clob_token_failed":
-        return True
-    return '"msg":"clob_token_failed"' in message or '"msg": "clob_token_failed"' in message
-
-
-def _extract_token_id(record: Any) -> str | None:
-    extra_fields = getattr(record, "extra_fields", None)
-    if isinstance(extra_fields, dict):
-        token_id = extra_fields.get("token_id")
-        if token_id is not None:
-            return str(token_id)
-
-    message = record.getMessage()
-    try:
-        parsed = json.loads(message)
-    except (TypeError, ValueError):
-        return None
-    if not isinstance(parsed, dict):
-        return None
-    parsed_extra = parsed.get("extra_fields")
-    if isinstance(parsed_extra, dict):
-        token_id = parsed_extra.get("token_id")
-        if token_id is not None:
-            return str(token_id)
-    return None
+def _parse_json_stderr(stderr: str) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for line in stderr.splitlines():
+        text = line.strip()
+        if not text or not text.startswith("{"):
+            continue
+        try:
+            parsed = json.loads(text)
+        except ValueError:
+            continue
+        if isinstance(parsed, dict):
+            rows.append(parsed)
+    return rows
 
 
 def test_clob_ingest_rest_sorts_tokens_and_continues_on_token_error(
     monkeypatch: Any,
-    caplog: Any,
+    capsys: Any,
 ) -> None:
     _FakeRepository.instances.clear()
     _FakeClobClient.instances.clear()
@@ -166,8 +143,6 @@ def test_clob_ingest_rest_sorts_tokens_and_continues_on_token_error(
     )
     monkeypatch.setattr("pmx.jobs.clob_ingest_rest.ClobRepository", _FakeRepository)
     monkeypatch.setattr("pmx.jobs.clob_ingest_rest.ClobRestClient", _FakeClobClient)
-
-    caplog.set_level(logging.INFO)
 
     stats = run_clob_ingest_rest(
         config=ClobIngestRestConfig(
@@ -191,6 +166,8 @@ def test_clob_ingest_rest_sorts_tokens_and_continues_on_token_error(
     assert repo.tokens_requested == ["token-a", "token-a", "token-a"]
     assert _FakeClobClient.instances[0].orderbook_fallbacks[0] is not None
 
-    failure_logs = [record for record in caplog.records if _is_clob_token_failed_log(record)]
+    captured = capsys.readouterr()
+    json_logs = _parse_json_stderr(captured.err)
+    failure_logs = [entry for entry in json_logs if entry.get("msg") == "clob_token_failed"]
     assert len(failure_logs) == 1
-    assert _extract_token_id(failure_logs[0]) == "token-b"
+    assert failure_logs[0].get("token_id") == "token-b"
