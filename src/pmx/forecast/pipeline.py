@@ -22,6 +22,8 @@ from pmx.forecast.uncertainty import (
     build_intervals,
     conformal_hash,
     fit_split_conformal,
+    uncertainty_coverage_report,
+    uncertainty_report_hash,
 )
 
 
@@ -93,6 +95,8 @@ class ForecastRunResult:
     calibration_report: dict[str, Any]
     quality_flags: tuple[str, ...]
     quality_warnings: tuple[str, ...]
+    uncertainty_report: dict[str, Any]
+    uncertainty_report_hash: str
     dataset_hash: str
     model_hash: str
     calibration_hash: str
@@ -109,6 +113,8 @@ class ForecastRunResult:
             "calibration_report": self.calibration_report,
             "quality_flags": list(self.quality_flags),
             "quality_warnings": list(self.quality_warnings),
+            "uncertainty_report": self.uncertainty_report,
+            "uncertainty_report_hash": self.uncertainty_report_hash,
             "dataset_hash": self.dataset_hash,
             "model_hash": self.model_hash,
             "calibration_hash": self.calibration_hash,
@@ -156,6 +162,11 @@ def run_forecast_pipeline(
     calibration_n_bins: int = 10,
     calibration_min_eval: int = 40,
     calibration_ece_threshold: float = 0.08,
+    uncertainty_min_n: int = 50,
+    uncertainty_target_50: float = 0.50,
+    uncertainty_target_90: float = 0.90,
+    uncertainty_tol: float = 0.05,
+    uncertainty_degenerate_rate_threshold: float = 0.25,
 ) -> ForecastRunResult:
     ordered_examples = tuple(
         sorted(
@@ -180,13 +191,37 @@ def run_forecast_pipeline(
             min_eval=calibration_min_eval,
             ece_threshold=calibration_ece_threshold,
         )
+        (
+            empty_uncertainty_report,
+            uncertainty_flags,
+            uncertainty_warnings,
+        ) = uncertainty_coverage_report(
+            preds=[],
+            labels=[],
+            intervals_50=[],
+            intervals_90=[],
+            min_n=uncertainty_min_n,
+            target_50=uncertainty_target_50,
+            target_90=uncertainty_target_90,
+            tol=uncertainty_tol,
+            degenerate_rate_threshold=uncertainty_degenerate_rate_threshold,
+        )
+        quality_flags = _merge_sorted_unique((*empty_quality_flags, *uncertainty_flags))
+        quality_warnings = _merge_sorted_unique(
+            (
+                *_calibration_quality_warnings(empty_quality_flags),
+                *uncertainty_warnings,
+            )
+        )
         return ForecastRunResult(
             forecasts=(),
             metrics=empty_metrics,
             interval_report=_empty_interval_report(),
             calibration_report=empty_calibration_report,
-            quality_flags=empty_quality_flags,
-            quality_warnings=_quality_warnings(empty_quality_flags),
+            quality_flags=quality_flags,
+            quality_warnings=quality_warnings,
+            uncertainty_report=empty_uncertainty_report,
+            uncertainty_report_hash=uncertainty_report_hash(empty_uncertainty_report),
             dataset_hash=_stable_hash([]),
             model_hash=build_model_hash(),
             calibration_hash=_stable_hash([]),
@@ -271,11 +306,29 @@ def run_forecast_pipeline(
     calibrated_metrics = calibration_summary["calibrated"]["metrics"]
     n_eval = int(calibrated_metrics.get("n_eval", 0))
     calibrated_ece = _as_float(calibrated_metrics.get("ece"), default=0.0)
-    quality_flags = evaluate_calibration_quality_gates(
+    calibration_quality_flags = evaluate_calibration_quality_gates(
         n_eval=n_eval,
         calibrated_ece=calibrated_ece,
         min_eval=calibration_min_eval,
         ece_threshold=calibration_ece_threshold,
+    )
+    uncertainty_summary, uncertainty_flags, uncertainty_warnings = uncertainty_coverage_report(
+        preds=calibrated_all,
+        labels=labels_all,
+        intervals_50=[item[0].interval_50 for item in forecasts_with_label],
+        intervals_90=[item[0].interval_90 for item in forecasts_with_label],
+        min_n=uncertainty_min_n,
+        target_50=uncertainty_target_50,
+        target_90=uncertainty_target_90,
+        tol=uncertainty_tol,
+        degenerate_rate_threshold=uncertainty_degenerate_rate_threshold,
+    )
+    quality_flags = _merge_sorted_unique((*calibration_quality_flags, *uncertainty_flags))
+    quality_warnings = _merge_sorted_unique(
+        (
+            *_calibration_quality_warnings(calibration_quality_flags),
+            *uncertainty_warnings,
+        )
     )
 
     dataset_hash = _dataset_hash(ordered_examples)
@@ -309,7 +362,9 @@ def run_forecast_pipeline(
         interval_report=interval_report,
         calibration_report=calibration_summary,
         quality_flags=quality_flags,
-        quality_warnings=_quality_warnings(quality_flags),
+        quality_warnings=quality_warnings,
+        uncertainty_report=uncertainty_summary,
+        uncertainty_report_hash=uncertainty_report_hash(uncertainty_summary),
         dataset_hash=dataset_hash,
         model_hash=model_hash,
         calibration_hash=calibration_hash_value,
@@ -437,16 +492,18 @@ def _empty_interval_report() -> dict[str, float]:
     }
 
 
-def _quality_warnings(flags: Sequence[str]) -> tuple[str, ...]:
+def _calibration_quality_warnings(flags: Sequence[str]) -> tuple[str, ...]:
     messages: list[str] = []
     for flag in flags:
         if flag == "insufficient_calibration_data":
             messages.append("Calibration quality gate: insufficient eval sample size.")
         elif flag == "poor_calibration":
             messages.append("Calibration quality gate: calibrated ECE above threshold.")
-        else:
-            messages.append(f"Calibration quality gate: {flag}")
     return tuple(messages)
+
+
+def _merge_sorted_unique(values: Sequence[str]) -> tuple[str, ...]:
+    return tuple(sorted({value for value in values if value}))
 
 
 def _dataset_hash(examples: Sequence[Example]) -> str:

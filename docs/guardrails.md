@@ -311,3 +311,13 @@ Each forecast output is expected to include:
   - `coverage_50`, `coverage_90`, `sharpness_50`, `sharpness_90`
   - expected long-run target is approximate nominal coverage
     (`coverage_50 ~= 0.50`, `coverage_90 ~= 0.90`) and must be monitored.
+- Forecast artifacts must also include `uncertainty_report` and
+  `uncertainty_report_hash`:
+  - deterministic per-level coverage/width summary for `0.5` and `0.9`
+  - sanity checks for interval validity, degeneracy, and width monotonicity
+  - additive soft quality flags:
+    - `insufficient_uncertainty_data`
+    - `conformal_invalid_intervals`
+    - `conformal_degenerate_intervals`
+    - `coverage_below_target_50`
+    - `coverage_below_target_90`

@@ -192,5 +192,7 @@ def test_forecast_baseline_ensemble_is_asof_safe_and_deterministic(
     assert artifact_a["dataset_hash"] == artifact_b["dataset_hash"]
     assert artifact_a["model_hash"] == artifact_b["model_hash"]
     assert artifact_a["forecast_payload_hash"] == artifact_b["forecast_payload_hash"]
+    assert artifact_a["uncertainty_report_hash"] == artifact_b["uncertainty_report_hash"]
+    assert artifact_a["uncertainty_report"]["version"] == "uncertainty_report.v1"
     assert Path(artifact_a["artifact_path"]).exists()
     assert Path(artifact_b["artifact_path"]).exists()

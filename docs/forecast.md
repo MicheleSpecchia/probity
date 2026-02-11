@@ -35,6 +35,7 @@ python -m pmx.jobs.forecast_baseline_ensemble `
     - `model_hash`
     - `calibration_hash`
     - `uncertainty_hash`
+    - `uncertainty_report_hash`
     - `forecast_payload_hash`
   - per-forecast outputs:
     - `p_raw`, `p_cal`
@@ -42,9 +43,15 @@ python -m pmx.jobs.forecast_baseline_ensemble `
     - deterministic `drivers`
     - `no_trade_flags` (`illiquid`, `stale`, `insufficient_data`)
   - aggregate metrics and interval quality report.
+  - uncertainty diagnostics:
+    - `uncertainty_report` with observed coverage/width by level (`0.5`, `0.9`)
+    - sanity checks (`invalid_interval`, `degenerate_interval`, monotonic width check)
+    - additive soft `quality_flags` / `quality_warnings` (no crash-only gates)
 
 ## Interpretation
 - `p_raw`: uncalibrated ensemble probability.
 - `p_cal`: calibrated probability for decisioning.
 - `interval_50` / `interval_90`: uncertainty bands from conformal residual quantiles.
 - `drivers`: deterministic contribution ranking (`coefficient * value`).
+- `uncertainty_report`: post-hoc diagnostic report; it does not change generated
+  intervals and is additive for audit/quality monitoring.

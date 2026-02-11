@@ -190,6 +190,8 @@ def run_forecast_baseline_ensemble(
         "calibration_report": pipeline.calibration_report,
         "quality_flags": list(pipeline.quality_flags),
         "quality_warnings": list(pipeline.quality_warnings),
+        "uncertainty_report": pipeline.uncertainty_report,
+        "uncertainty_report_hash": pipeline.uncertainty_report_hash,
         "calibration_windows": [window.as_dict() for window in pipeline.calibration_windows],
         "forecasts": [record.as_dict() for record in pipeline.forecasts],
     }
