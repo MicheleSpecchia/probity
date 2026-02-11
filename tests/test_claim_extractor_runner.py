@@ -89,7 +89,7 @@ def test_claim_extract_stub_runner_valid_output_writes_audit_bundle(tmp_path: Pa
         nonce="stable-nonce",
     )
 
-    assert result["used_fallback"] == 0
+    assert result["used_fallback"] is False
     artifact_path = Path(result["artifact_path"])
     assert artifact_path.exists()
 
@@ -160,7 +160,12 @@ def test_claim_extract_stub_runner_invalid_output_triggers_fallback(tmp_path: Pa
         schema_version="claim_extract.v1",
     )
 
-    assert result_a["used_fallback"] == 1
+    assert result_a["used_fallback"] is True
+    assert result_b["used_fallback"] is True
+    assert result_a["validator_error_count"] > 0
+    assert result_b["validator_error_count"] > 0
+    assert len(artifact_a["validator_errors"]) > 0
+    assert len(artifact_b["validator_errors"]) > 0
     assert "llm_invalid_output" in artifact_a["no_trade_flags"]
     assert artifact_a["payload"]["claims"] == []
     assert artifact_a["payload"]["claims_raw"] == []

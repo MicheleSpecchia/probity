@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+import logging
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, ClassVar
@@ -115,24 +115,9 @@ class _FakeClobClient:
         ]
 
 
-def _parse_json_stderr(stderr: str) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for line in stderr.splitlines():
-        text = line.strip()
-        if not text or not text.startswith("{"):
-            continue
-        try:
-            parsed = json.loads(text)
-        except ValueError:
-            continue
-        if isinstance(parsed, dict):
-            rows.append(parsed)
-    return rows
-
-
 def test_clob_ingest_rest_sorts_tokens_and_continues_on_token_error(
     monkeypatch: Any,
-    capsys: Any,
+    caplog: Any,
 ) -> None:
     _FakeRepository.instances.clear()
     _FakeClobClient.instances.clear()
@@ -143,6 +128,7 @@ def test_clob_ingest_rest_sorts_tokens_and_continues_on_token_error(
     )
     monkeypatch.setattr("pmx.jobs.clob_ingest_rest.ClobRepository", _FakeRepository)
     monkeypatch.setattr("pmx.jobs.clob_ingest_rest.ClobRestClient", _FakeClobClient)
+    caplog.set_level(logging.ERROR, logger="pmx.jobs.clob_ingest_rest")
 
     stats = run_clob_ingest_rest(
         config=ClobIngestRestConfig(
@@ -166,8 +152,11 @@ def test_clob_ingest_rest_sorts_tokens_and_continues_on_token_error(
     assert repo.tokens_requested == ["token-a", "token-a", "token-a"]
     assert _FakeClobClient.instances[0].orderbook_fallbacks[0] is not None
 
-    captured = capsys.readouterr()
-    json_logs = _parse_json_stderr(captured.err)
-    failure_logs = [entry for entry in json_logs if entry.get("msg") == "clob_token_failed"]
+    failure_logs = [
+        record for record in caplog.records if record.getMessage() == "clob_token_failed"
+    ]
     assert len(failure_logs) == 1
-    assert failure_logs[0].get("token_id") == "token-b"
+    extra_fields = getattr(failure_logs[0], "extra_fields", None)
+    if not isinstance(extra_fields, dict):
+        raise AssertionError("Expected structured extra_fields dict on log record")
+    assert extra_fields.get("token_id") == "token-b"

@@ -1,16 +1,12 @@
 {
-  "schema_version": "claim_extract.v1",
-  "market_id": "market-election-2026",
-  "generated_at": "2026-02-11T12:00:00Z",
-  "claims": [
-    {
-      "claim_text": "Malformed source URL example.",
-      "stance": "support",
-      "sources": [
+    "schema_version": "claim_extract.v1",
+    "market_id": "market-election-2026",
+    "generated_at": "2026-02-11T12:00:00Z",
+    "claims": [
         {
-          "url": "not-a-valid-uri"
+            "claim_text": "Malformed source URL example.",
+            "stance": "invalid_stance",
+            "sources": [{"url": "not-a-valid-uri"}],
         }
-      ]
-    }
-  ]
+    ],
 }

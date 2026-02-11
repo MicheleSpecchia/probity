@@ -137,7 +137,7 @@ def run_claim_extract_stub(
     return {
         "artifact_path": str(artifact_path),
         "run_id": run_context.run_id,
-        "used_fallback": int(outcome.used_fallback),
+        "used_fallback": outcome.used_fallback,
         "validator_error_count": len(outcome.validator_errors),
         "claim_count": _claim_count(outcome.payload),
     }
