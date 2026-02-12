@@ -10,9 +10,9 @@ from pmx.backtest.metrics import aggregate_metrics
 from pmx.forecast.canonical import canonical_hash
 from pmx.forecast.calibration import (
     Calibrator,
-    calibration_report_hash,
     calibrate_probabilities,
     calibration_report,
+    calibration_report_hash,
     calibrator_hash,
     fit_calibrator,
 )
