@@ -451,3 +451,28 @@ Each forecast output is expected to include:
     - `pipeline_policy_hash`
     - `pipeline_outputs_hash`
     - `pipeline_payload_hash`.
+
+## Performance report v1 guardrails
+- Performance reporting is artifact-only and offline:
+  - consumes one or more `portfolio_artifact.v1` files
+  - emits `performance_report_artifact.v1`.
+- Determinism requirements:
+  - stable input ordering by `(portfolio_run_id, portfolio_payload_hash)`
+  - deterministic per-run ordering in output
+  - deterministic quality merge:
+    - `quality_flags`: unique + sorted
+    - `quality_warnings`: sorted by `(code, message)`.
+- Quality checks are soft (flags/warnings only, no crash gates):
+  - `insufficient_inputs`
+  - `zero_notional`
+  - `extreme_concentration_top1`
+  - `extreme_concentration_top3`
+  - `negative_pnl_large`.
+- Performance report contract:
+  - `artifact_schema_version = "performance_report_artifact.v1"`
+  - validate with
+    `pmx.performance.validate_artifact.validate_performance_report_artifact(...)`
+  - required reproducibility hashes:
+    - `performance_policy_hash`
+    - `performance_inputs_hash`
+    - `performance_payload_hash`.

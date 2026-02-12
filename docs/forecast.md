@@ -233,6 +233,36 @@ python -m pmx.jobs.run_pipeline_stub `
       - `pipeline_outputs_hash`
       - `pipeline_payload_hash`
 
+## Performance Report v1 (Milestone 10.7)
+- Performance report is artifact-only and offline:
+  - input: one or more portfolio artifacts
+  - output: `artifacts/performance/<run_id>.json`
+  - no DB/network dependency.
+- Run:
+```powershell
+python -m pmx.jobs.performance_from_portfolio `
+  --portfolio-artifacts tests/fixtures/portfolio/portfolio_artifact_sample_A.json,tests/fixtures/portfolio/portfolio_artifact_sample_B.json `
+  --artifacts-root artifacts
+```
+- Optional windowing (inclusive on `generated_at_utc` when present):
+```powershell
+python -m pmx.jobs.performance_from_portfolio `
+  --portfolio-artifacts artifacts/portfolios/run_a.json,artifacts/portfolios/run_b.json `
+  --window-from 2026-02-01T00:00:00Z `
+  --window-to 2026-02-28T23:59:59Z
+```
+- Report includes deterministic per-run and aggregate metrics:
+  - counts (`n_ledger`, `n_positions`)
+  - notional/PnL (`total_notional_usd`, `unrealized_pnl_usd`, `pnl_bps`)
+  - concentration (`top1_notional_share`, `top3_notional_share`, category shares)
+  - exposure by token/side
+  - aggregate stats (mean/median/worst/best PnL, zero-notional coverage)
+  - soft quality flags/warnings.
+- Reproducibility hashes:
+  - `performance_policy_hash`
+  - `performance_inputs_hash`
+  - `performance_payload_hash`
+
 ## Determinism policy
 - Canonical JSON hashing is centralized in `pmx.forecast.canonical`:
   - sorted object keys

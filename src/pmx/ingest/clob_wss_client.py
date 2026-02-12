@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import json
 import time
 from collections.abc import Iterator, Mapping, Sequence
@@ -89,7 +90,7 @@ class WebsocketClientTransport:
 
     def connect(self, *, url: str, timeout_seconds: int) -> WssConnection:
         try:
-            import websocket  # type: ignore[import-not-found]
+            websocket = importlib.import_module("websocket")
         except ImportError as exc:
             raise ClobWssError(
                 "websocket-client is required for live WSS usage. Install 'websocket-client'."

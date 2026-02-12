@@ -1,0 +1,306 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pmx.performance.performance_report_artifact.v1",
+  "title": "Performance Report Artifact v1",
+  "type": "object",
+  "required": [
+    "artifact_schema_version",
+    "run_id",
+    "generated_at_utc",
+    "code_version",
+    "config_hash",
+    "performance_policy_version",
+    "params",
+    "inputs",
+    "per_run_metrics",
+    "aggregate_metrics",
+    "quality_flags",
+    "quality_warnings",
+    "performance_policy_hash",
+    "performance_inputs_hash",
+    "performance_payload_hash"
+  ],
+  "properties": {
+    "artifact_schema_version": {
+      "type": "string",
+      "const": "performance_report_artifact.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "code_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "config_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "performance_policy_version": {
+      "type": "string",
+      "const": "performance_report_policy.v1"
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "portfolio_run_id",
+          "portfolio_payload_hash"
+        ],
+        "properties": {
+          "portfolio_run_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "portfolio_payload_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "per_run_metrics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "portfolio_run_id",
+          "portfolio_payload_hash",
+          "counts",
+          "n_duplicate_client_order_id_ignored",
+          "total_notional_usd",
+          "unrealized_pnl_usd",
+          "pnl_bps",
+          "concentration",
+          "exposure_by_token_side"
+        ],
+        "properties": {
+          "portfolio_run_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "portfolio_payload_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "generated_at_utc": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "counts": {
+            "type": "object",
+            "required": [
+              "n_ledger",
+              "n_positions"
+            ],
+            "properties": {
+              "n_ledger": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "n_positions": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": true
+          },
+          "n_duplicate_client_order_id_ignored": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_notional_usd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "unrealized_pnl_usd": {
+            "type": "number"
+          },
+          "pnl_bps": {
+            "type": "number"
+          },
+          "concentration": {
+            "type": "object",
+            "required": [
+              "top1_notional_share",
+              "top3_notional_share",
+              "by_category_share"
+            ],
+            "properties": {
+              "top1_notional_share": {
+                "type": "number",
+                "minimum": 0
+              },
+              "top3_notional_share": {
+                "type": "number",
+                "minimum": 0
+              },
+              "by_category_share": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0
+                }
+              }
+            },
+            "additionalProperties": true
+          },
+          "exposure_by_token_side": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "token_id",
+                "side",
+                "quantity",
+                "notional_usd",
+                "signed_notional_usd"
+              ],
+              "properties": {
+                "token_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "side": {
+                  "type": "string",
+                  "enum": [
+                    "BUY_YES",
+                    "BUY_NO"
+                  ]
+                },
+                "quantity": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "notional_usd": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "signed_notional_usd": {
+                  "type": "number"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "aggregate_metrics": {
+      "type": "object",
+      "required": [
+        "n_inputs",
+        "mean_pnl_bps",
+        "median_pnl_bps",
+        "worst_pnl_bps",
+        "best_pnl_bps",
+        "mean_unrealized_pnl_usd",
+        "median_unrealized_pnl_usd",
+        "coverage"
+      ],
+      "properties": {
+        "n_inputs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mean_pnl_bps": {
+          "type": "number"
+        },
+        "median_pnl_bps": {
+          "type": "number"
+        },
+        "worst_pnl_bps": {
+          "type": "number"
+        },
+        "best_pnl_bps": {
+          "type": "number"
+        },
+        "mean_unrealized_pnl_usd": {
+          "type": "number"
+        },
+        "median_unrealized_pnl_usd": {
+          "type": "number"
+        },
+        "coverage": {
+          "type": "object",
+          "required": [
+            "zero_notional_inputs",
+            "nonzero_notional_inputs",
+            "zero_notional_rate"
+          ],
+          "properties": {
+            "zero_notional_inputs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "nonzero_notional_inputs": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "zero_notional_rate": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": true
+    },
+    "quality_flags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "quality_warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "performance_policy_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "performance_inputs_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "performance_payload_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": true
+}
