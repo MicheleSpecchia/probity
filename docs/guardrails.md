@@ -405,3 +405,31 @@ Each forecast output is expected to include:
     - `execution_policy_hash`
     - `orders_hash`
     - `execution_payload_hash`.
+
+## Portfolio accounting v1 guardrails
+- Portfolio accounting is artifact-only and offline:
+  - consumes one or more execution artifacts
+  - emits a portfolio artifact
+  - no DB/network dependency in the accounting layer.
+- Ledger policy (`portfolio_accounting.v1`):
+  - only `SIMULATED_SUBMITTED` execution orders become ledger entries.
+  - `SIMULATED_REJECTED` orders never change positions (warning-only).
+  - duplicate `client_order_id` handling is deterministic:
+    first occurrence is kept, later duplicates are ignored and logged.
+- Position policy:
+  - aggregation key is `(token_id, side)` with deterministic ordering.
+  - average cost is VWAP-like over deterministic ledger order.
+- Valuation policy:
+  - deterministic mark source selection:
+    `execution_price`, `execution_p_cal`, or `execution_price_prob`.
+  - if a mark source is missing for a position, provide offline fallback map
+    via `--reference-prices-json`; otherwise fail fast.
+- Portfolio artifact contract:
+  - `artifact_schema_version = "portfolio_artifact.v1"`
+  - validate with `pmx.portfolio.validate_artifact.validate_portfolio_artifact(...)`
+  - mandatory reproducibility hashes:
+    - `portfolio_policy_hash`
+    - `ledger_hash`
+    - `positions_hash`
+    - `valuation_hash`
+    - `portfolio_payload_hash`.

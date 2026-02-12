@@ -1,0 +1,526 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pmx.portfolio.portfolio_artifact.v1",
+  "title": "Portfolio Artifact v1",
+  "type": "object",
+  "required": [
+    "artifact_schema_version",
+    "run_id",
+    "generated_at_utc",
+    "code_version",
+    "config_hash",
+    "input_execution_hashes",
+    "portfolio_policy_version",
+    "portfolio_policy_hash",
+    "params",
+    "quality_flags",
+    "quality_warnings",
+    "ledger_entries",
+    "positions",
+    "valuation",
+    "counts",
+    "ledger_hash",
+    "positions_hash",
+    "valuation_hash",
+    "portfolio_payload_hash"
+  ],
+  "properties": {
+    "artifact_schema_version": {
+      "type": "string",
+      "const": "portfolio_artifact.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "code_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "config_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_execution_run_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "input_execution_hashes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    },
+    "input_trade_plan_run_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "input_decision_run_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "input_forecast_run_ids": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "forecast_payload_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "dataset_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "model_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "calibration_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "uncertainty_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "decision_payload_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "decision_policy_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "trade_plan_payload_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "portfolio_policy_version": {
+      "type": "string",
+      "const": "portfolio_accounting.v1"
+    },
+    "portfolio_policy_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "params": {
+      "type": "object",
+      "required": [
+        "fee_bps",
+        "fee_usd",
+        "mark_source"
+      ],
+      "properties": {
+        "fee_bps": {
+          "type": "number",
+          "minimum": 0
+        },
+        "fee_usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "mark_source": {
+          "type": "string",
+          "enum": [
+            "execution_price",
+            "execution_p_cal",
+            "execution_price_prob"
+          ]
+        },
+        "reference_prices_json": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "quality_flags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "quality_warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "field": {
+            "type": "string"
+          },
+          "token_id": {
+            "type": "string"
+          },
+          "side": {
+            "type": "string"
+          },
+          "client_order_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "ledger_entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "entry_id",
+          "executed_at_utc",
+          "execution_run_id",
+          "execution_artifact_hash",
+          "client_order_id",
+          "market_id",
+          "token_id",
+          "side",
+          "status",
+          "quantity",
+          "price",
+          "notional_usd",
+          "fee_usd",
+          "total_cost_usd"
+        ],
+        "properties": {
+          "entry_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "executed_at_utc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "execution_run_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "execution_artifact_hash": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "client_order_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "market_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "token_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "BUY_YES",
+              "BUY_NO"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "const": "SIMULATED_FILLED"
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "price": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "notional_usd": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "fee_usd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "total_cost_usd": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "positions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "position_id",
+          "token_id",
+          "side",
+          "quantity",
+          "avg_cost",
+          "cost_basis_usd",
+          "notional_usd",
+          "fees_usd",
+          "market_ids"
+        ],
+        "properties": {
+          "position_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "token_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "BUY_YES",
+              "BUY_NO"
+            ]
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "avg_cost": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "cost_basis_usd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "notional_usd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "fees_usd": {
+            "type": "number",
+            "minimum": 0
+          },
+          "market_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "valuation": {
+      "type": "object",
+      "required": [
+        "mark_source",
+        "summary",
+        "per_position"
+      ],
+      "properties": {
+        "mark_source": {
+          "type": "string",
+          "enum": [
+            "execution_price",
+            "execution_p_cal",
+            "execution_price_prob"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "required": [
+            "n_positions",
+            "total_cost_basis_usd",
+            "total_market_value_usd",
+            "total_unrealized_pnl_usd",
+            "total_notional_exposure_usd"
+          ],
+          "properties": {
+            "n_positions": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "total_cost_basis_usd": {
+              "type": "number"
+            },
+            "total_market_value_usd": {
+              "type": "number"
+            },
+            "total_unrealized_pnl_usd": {
+              "type": "number"
+            },
+            "total_notional_exposure_usd": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "additionalProperties": true
+        },
+        "per_position": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "token_id",
+              "side",
+              "quantity",
+              "avg_cost",
+              "mark_price",
+              "cost_basis_usd",
+              "market_value_usd",
+              "unrealized_pnl_usd",
+              "notional_exposure_usd"
+            ],
+            "properties": {
+              "position_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "token_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "side": {
+                "type": "string",
+                "enum": [
+                  "BUY_YES",
+                  "BUY_NO"
+                ]
+              },
+              "quantity": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "avg_cost": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "mark_price": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "cost_basis_usd": {
+                "type": "number"
+              },
+              "market_value_usd": {
+                "type": "number"
+              },
+              "unrealized_pnl_usd": {
+                "type": "number"
+              },
+              "notional_exposure_usd": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "counts": {
+      "type": "object",
+      "required": [
+        "n_execution_inputs",
+        "n_input_orders",
+        "n_ledger_entries",
+        "n_positions",
+        "n_quality_warnings"
+      ],
+      "properties": {
+        "n_execution_inputs": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_input_orders": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_ledger_entries": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_positions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_quality_warnings": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "ledger_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "positions_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "valuation_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "portfolio_payload_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": true
+}

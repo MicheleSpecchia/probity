@@ -156,6 +156,43 @@ python -m pmx.jobs.execute_trade_plan_stub `
   - `orders_hash`
   - `execution_payload_hash`
 
+## Portfolio Accounting v1 (Milestone 10.5)
+- Portfolio job is artifact-only and offline:
+  - input: one or more execution artifacts
+  - output: `artifacts/portfolios/<run_id>.json`
+- Run:
+```powershell
+python -m pmx.jobs.portfolio_from_execution `
+  --execution-artifacts artifacts/executions/<execution_run_id>.json `
+  --artifacts-root artifacts `
+  --fee-bps 0 `
+  --fee-usd 0 `
+  --mark-source execution_price
+```
+- Multiple inputs can be provided by repeating `--execution-artifacts` or with
+  comma-separated paths.
+- Policy (`portfolio_accounting.v1`) behavior:
+  - deterministic ledger from `SIMULATED_SUBMITTED` orders only.
+  - deterministic duplicate handling on `client_order_id` (first wins, later
+    duplicates ignored with warning).
+  - deterministic position aggregation (`token_id`, `side`) with VWAP
+    `avg_cost`.
+  - deterministic mark-to-model valuation with configurable mark source:
+    - `execution_price`
+    - `execution_p_cal`
+    - `execution_price_prob`
+    - optional fallback map: `--reference-prices-json`.
+- Portfolio artifact schema:
+  - `artifact_schema_version = "portfolio_artifact.v1"`
+  - validator:
+    - `pmx.portfolio.validate_artifact.validate_portfolio_artifact(...)`
+- Portfolio hashes:
+  - `portfolio_policy_hash`
+  - `ledger_hash`
+  - `positions_hash`
+  - `valuation_hash`
+  - `portfolio_payload_hash`
+
 ## Determinism policy
 - Canonical JSON hashing is centralized in `pmx.forecast.canonical`:
   - sorted object keys

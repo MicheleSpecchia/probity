@@ -1,0 +1,122 @@
+{
+  "artifact_schema_version": "execution_artifact.v1",
+  "run_id": "execution-run-sample",
+  "generated_at_utc": "2026-02-04T00:00:00+00:00",
+  "code_version": "executioncode123",
+  "config_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "input_trade_plan_run_id": "trade-plan-run-sample",
+  "input_trade_plan_artifact_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "input_decision_run_id": "decision-run-sample",
+  "input_forecast_run_id": "forecast-run-sample",
+  "forecast_payload_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "dataset_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+  "model_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+  "calibration_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+  "uncertainty_hash": "4444444444444444444444444444444444444444444444444444444444444444",
+  "decision_payload_hash": "5555555555555555555555555555555555555555555555555555555555555555",
+  "decision_policy_hash": "6666666666666666666666666666666666666666666666666666666666666666",
+  "trade_plan_payload_hash": "7777777777777777777777777777777777777777777777777777777777777777",
+  "trade_plan_policy_hash": "8888888888888888888888888888888888888888888888888888888888888888",
+  "execution_policy_version": "execution_policy.v1",
+  "execution_policy_hash": "9999999999999999999999999999999999999999999999999999999999999999",
+  "params": {
+    "mode": "simulate_submit",
+    "max_orders": 200,
+    "simulate_reject_modulo": 0,
+    "simulate_reject_remainder": 0
+  },
+  "idempotency_key": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "orders": [
+    {
+      "rank": 1,
+      "client_order_id": "1111111111111111111111111111111111111111111111111111111111111111",
+      "market_id": "mkt-b",
+      "token_id": "tok-b",
+      "side": "BUY_NO",
+      "price": 0.55,
+      "quantity": 181.82,
+      "notional_usd": 100.0,
+      "price_prob": 0.45,
+      "p_cal": 0.34,
+      "status": "SIMULATED_SUBMITTED",
+      "reject_reason_code": null
+    },
+    {
+      "rank": 2,
+      "client_order_id": "2222222222222222222222222222222222222222222222222222222222222222",
+      "market_id": "mkt-a",
+      "token_id": "tok-a",
+      "side": "BUY_YES",
+      "price": 0.52,
+      "quantity": 192.31,
+      "notional_usd": 100.0,
+      "price_prob": 0.52,
+      "p_cal": 0.6,
+      "status": "SIMULATED_SUBMITTED",
+      "reject_reason_code": null
+    },
+    {
+      "rank": 3,
+      "client_order_id": "3333333333333333333333333333333333333333333333333333333333333333",
+      "market_id": "mkt-e",
+      "token_id": "tok-e",
+      "side": "BUY_YES",
+      "price": 0.61,
+      "quantity": 163.93,
+      "notional_usd": 100.0,
+      "price_prob": 0.61,
+      "p_cal": 0.63,
+      "status": "SIMULATED_SUBMITTED",
+      "reject_reason_code": null
+    },
+    {
+      "rank": 4,
+      "client_order_id": "4444444444444444444444444444444444444444444444444444444444444444",
+      "market_id": "mkt-f",
+      "token_id": "tok-f",
+      "side": "BUY_NO",
+      "price": 0.45,
+      "quantity": 222.22,
+      "notional_usd": 100.0,
+      "price_prob": 0.55,
+      "p_cal": 0.53,
+      "status": "SIMULATED_REJECTED",
+      "reject_reason_code": "simulated_reject_hash_mod"
+    }
+  ],
+  "skipped": [
+    {
+      "market_id": "mkt-c",
+      "token_id": "tok-c",
+      "reason_code": "blocked_by_quality_flag:illiquid",
+      "quality_flags": [
+        "illiquid"
+      ],
+      "quality_warnings": [
+        {
+          "code": "illiquid",
+          "message": "Depth below threshold"
+        }
+      ],
+      "no_trade_reasons": []
+    },
+    {
+      "market_id": "mkt-d",
+      "token_id": "tok-d",
+      "reason_code": "decision_no_trade:edge_below_threshold",
+      "quality_flags": [],
+      "quality_warnings": [],
+      "no_trade_reasons": [
+        "edge_below_threshold"
+      ]
+    }
+  ],
+  "counts": {
+    "n_total": 6,
+    "n_orders": 4,
+    "n_rejected": 1,
+    "n_skipped": 2
+  },
+  "orders_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "execution_payload_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+}
