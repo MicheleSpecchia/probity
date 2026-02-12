@@ -7,7 +7,6 @@ from typing import Any
 
 from pmx.backtest.asof_dataset import Example
 from pmx.backtest.metrics import aggregate_metrics
-from pmx.forecast.canonical import canonical_hash
 from pmx.forecast.calibration import (
     Calibrator,
     calibrate_probabilities,
@@ -16,6 +15,7 @@ from pmx.forecast.calibration import (
     calibrator_hash,
     fit_calibrator,
 )
+from pmx.forecast.canonical import canonical_hash
 from pmx.forecast.models import build_model_hash, compute_probabilities, extract_top_drivers
 from pmx.forecast.quality import merge_quality_flags, merge_quality_warnings
 from pmx.forecast.uncertainty import (
