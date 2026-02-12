@@ -53,6 +53,40 @@ python -m pmx.jobs.forecast_baseline_ensemble `
   - artifact contract can be validated via:
     - `pmx.forecast.validate_artifact.validate_forecast_artifact(...)`
 
+## Decision Layer v1 (Milestone 10.2)
+- Decision job is artifact-only and does not require DB access:
+  - input: forecast artifact JSON
+  - output: `artifacts/decisions/<run_id>.json`
+- Run:
+```powershell
+python -m pmx.jobs.decide_from_forecast `
+  --forecast-artifact artifacts/forecasts/<forecast_run_id>.json `
+  --min-edge-bps 50 `
+  --robust-mode require_positive_low90 `
+  --max-items 200 `
+  --artifacts-root artifacts
+```
+- Policy (`decision_policy.v1`) per forecast row:
+  - `edge = p_cal - price_prob`
+  - `edge_bps = 10000 * edge`
+  - robust checks:
+    - `require_positive_low90`: BUY_YES requires `interval_90.low - price_prob > 0`
+    - `require_negative_high90`: BUY_NO requires `interval_90.high - price_prob < 0`
+    - `none`: threshold-only checks
+  - blocking flags force `NO_TRADE` with deterministic reason codes:
+    - `illiquid`, `stale`, `insufficient_data`
+    - `poor_calibration`, `insufficient_calibration_data`
+    - `conformal_invalid_intervals`, `conformal_degenerate_intervals`
+    - `insufficient_uncertainty_data`
+- Decision artifact schema:
+  - `decision_schema_version = "decision_artifact.v1"`
+  - validator:
+    - `pmx.decisions.validate_artifact.validate_decision_artifact(...)`
+- Decision artifact hashes:
+  - `policy_hash`
+  - `decision_items_hash`
+  - `decision_payload_hash`
+
 ## Determinism policy
 - Canonical JSON hashing is centralized in `pmx.forecast.canonical`:
   - sorted object keys

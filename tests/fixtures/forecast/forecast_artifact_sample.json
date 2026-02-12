@@ -1,0 +1,151 @@
+{
+  "artifact_schema_version": "forecast_artifact.v1",
+  "calibration_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "calibration_report": {
+    "n_bins": 10
+  },
+  "calibration_report_hash": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "code_version": "testcode123456",
+  "config_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "dataset_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "forecast_payload_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "from_ts": "2026-02-01T00:00:00+00:00",
+  "model_hash": "9999999999999999999999999999999999999999999999999999999999999999",
+  "quality_flags": [],
+  "quality_warnings": [],
+  "run_id": "forecast-run-sample",
+  "uncertainty_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "uncertainty_report": {
+    "version": "uncertainty_report.v1"
+  },
+  "uncertainty_report_hash": "1212121212121212121212121212121212121212121212121212121212121212",
+  "forecasts": [
+    {
+      "decision_ts": "2026-02-01T00:00:00+00:00",
+      "interval_50": {
+        "high": 0.62,
+        "low": 0.58
+      },
+      "interval_90": {
+        "high": 0.66,
+        "low": 0.55
+      },
+      "market_id": "mkt-a",
+      "no_trade_flags": [],
+      "p_a": 0.52,
+      "p_cal": 0.6,
+      "p_raw": 0.56,
+      "price_prob": 0.52,
+      "quality_flags": [],
+      "quality_warnings": [],
+      "token_id": "tok-a"
+    },
+    {
+      "decision_ts": "2026-02-01T00:00:00+00:00",
+      "interval_50": {
+        "high": 0.38,
+        "low": 0.31
+      },
+      "interval_90": {
+        "high": 0.43,
+        "low": 0.28
+      },
+      "market_id": "mkt-b",
+      "no_trade_flags": [],
+      "p_a": 0.45,
+      "p_cal": 0.34,
+      "p_raw": 0.37,
+      "price_prob": 0.45,
+      "quality_flags": [],
+      "quality_warnings": [],
+      "token_id": "tok-b"
+    },
+    {
+      "decision_ts": "2026-02-01T00:00:00+00:00",
+      "interval_50": {
+        "high": 0.58,
+        "low": 0.53
+      },
+      "interval_90": {
+        "high": 0.61,
+        "low": 0.51
+      },
+      "market_id": "mkt-c",
+      "no_trade_flags": [
+        "illiquid"
+      ],
+      "p_a": 0.5,
+      "p_cal": 0.55,
+      "p_raw": 0.54,
+      "price_prob": 0.5,
+      "quality_flags": [],
+      "quality_warnings": [
+        {
+          "code": "illiquid",
+          "message": "Top depth below threshold."
+        }
+      ],
+      "token_id": "tok-c"
+    },
+    {
+      "decision_ts": "2026-02-01T00:00:00+00:00",
+      "interval_50": {
+        "high": 0.49,
+        "low": 0.44
+      },
+      "interval_90": {
+        "high": 0.53,
+        "low": 0.39
+      },
+      "market_id": "mkt-d",
+      "no_trade_flags": [],
+      "p_a": 0.4,
+      "p_cal": 0.47,
+      "p_raw": 0.45,
+      "price_prob": 0.4,
+      "quality_flags": [],
+      "quality_warnings": [],
+      "token_id": "tok-d"
+    },
+    {
+      "decision_ts": "2026-02-01T00:00:00+00:00",
+      "interval_50": {
+        "high": 0.62,
+        "low": 0.61
+      },
+      "interval_90": {
+        "high": 0.64,
+        "low": 0.58
+      },
+      "market_id": "mkt-e",
+      "no_trade_flags": [],
+      "p_a": 0.61,
+      "p_cal": 0.614,
+      "p_raw": 0.613,
+      "price_prob": 0.61,
+      "quality_flags": [],
+      "quality_warnings": [],
+      "token_id": "tok-e"
+    },
+    {
+      "decision_ts": "2026-02-01T00:00:00+00:00",
+      "interval_50": {
+        "high": 0.5,
+        "low": 0.4
+      },
+      "interval_90": {
+        "high": 0.57,
+        "low": 0.31
+      },
+      "market_id": "mkt-f",
+      "no_trade_flags": [],
+      "p_a": 0.55,
+      "p_cal": 0.44,
+      "p_raw": 0.46,
+      "price_prob": 0.55,
+      "quality_flags": [],
+      "quality_warnings": [],
+      "token_id": "tok-f"
+    }
+  ]
+}

@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pmx.decisions.decision_artifact.v1",
+  "title": "Decision Artifact v1",
+  "type": "object",
+  "required": [
+    "decision_schema_version",
+    "run_id",
+    "code_version",
+    "config_hash",
+    "policy_version",
+    "params",
+    "items",
+    "policy_hash",
+    "decision_items_hash",
+    "decision_payload_hash"
+  ],
+  "properties": {
+    "decision_schema_version": {
+      "type": "string",
+      "const": "decision_artifact.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "code_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "config_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_forecast_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "forecast_payload_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "dataset_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "model_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "calibration_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "uncertainty_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy_version": {
+      "type": "string",
+      "const": "decision_policy.v1"
+    },
+    "params": {
+      "type": "object",
+      "required": [
+        "min_edge_bps",
+        "robust_mode",
+        "max_items"
+      ],
+      "properties": {
+        "min_edge_bps": {
+          "type": "number",
+          "minimum": 0
+        },
+        "robust_mode": {
+          "type": "string",
+          "enum": [
+            "require_positive_low90",
+            "require_negative_high90",
+            "none"
+          ]
+        },
+        "max_items": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": true
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "market_id",
+          "token_id",
+          "price_prob",
+          "p_raw",
+          "p_cal",
+          "interval_50",
+          "interval_90",
+          "edge",
+          "edge_bps",
+          "edge_low_90",
+          "edge_high_90",
+          "action",
+          "no_trade_reasons",
+          "quality_flags",
+          "quality_warnings"
+        ],
+        "properties": {
+          "market_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "token_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "price_prob": {
+            "type": "number"
+          },
+          "p_raw": {
+            "type": "number"
+          },
+          "p_cal": {
+            "type": "number"
+          },
+          "interval_50": {
+            "type": "object",
+            "required": [
+              "low",
+              "high"
+            ],
+            "properties": {
+              "low": {
+                "type": "number"
+              },
+              "high": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          },
+          "interval_90": {
+            "type": "object",
+            "required": [
+              "low",
+              "high"
+            ],
+            "properties": {
+              "low": {
+                "type": "number"
+              },
+              "high": {
+                "type": "number"
+              }
+            },
+            "additionalProperties": false
+          },
+          "edge": {
+            "type": "number"
+          },
+          "edge_bps": {
+            "type": "number"
+          },
+          "edge_low_90": {
+            "type": "number"
+          },
+          "edge_high_90": {
+            "type": "number"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "BUY_YES",
+              "BUY_NO",
+              "NO_TRADE"
+            ]
+          },
+          "no_trade_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "quality_flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "quality_warnings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "code"
+              ],
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "message": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "policy_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "decision_items_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "decision_payload_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": true
+}

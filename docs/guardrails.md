@@ -326,3 +326,28 @@ Each forecast output is expected to include:
   - validate with `pmx.forecast.validate_artifact.validate_forecast_artifact(...)`
   - `quality_warnings` entries must be objects with at least `code` field
     (message/detail optional).
+
+## Decision layer v1 guardrails
+- Decision generation is artifact-only:
+  - read forecast artifact JSON
+  - produce decision artifact JSON
+  - no DB dependency for sanity runs.
+- Decision policy contract (`decision_policy.v1`):
+  - compute `edge`, `edge_bps`, `edge_low_90`, `edge_high_90` deterministically.
+  - blocking quality flags force `NO_TRADE` with explicit reason codes
+    (`flag:<name>`).
+  - robust checks are mode-driven and deterministic:
+    - `require_positive_low90` for BUY_YES
+    - `require_negative_high90` for BUY_NO
+    - `none` for threshold-only.
+- Ranking must be deterministic:
+  - tradable first by `abs(edge_bps) DESC`
+  - tie-break by `market_id ASC`, `token_id ASC`
+  - then `NO_TRADE` rows ordered by `market_id ASC`, `token_id ASC`.
+- Decision artifact contract:
+  - `decision_schema_version = "decision_artifact.v1"`
+  - validate with `pmx.decisions.validate_artifact.validate_decision_artifact(...)`
+  - hashes are mandatory and reproducible:
+    - `policy_hash`
+    - `decision_items_hash`
+    - `decision_payload_hash`.
