@@ -433,3 +433,21 @@ Each forecast output is expected to include:
     - `positions_hash`
     - `valuation_hash`
     - `portfolio_payload_hash`.
+
+## End-to-end pipeline runner v1 guardrails
+- Runner is artifact-only and offline:
+  - forecast artifact -> decision artifact -> trade-plan artifact
+    -> execution artifact -> portfolio artifact -> pipeline summary artifact.
+  - no DB/network calls in orchestration.
+- Determinism and reproducibility:
+  - deterministic runner `run_id` derived from input forecast hash + normalized
+    pipeline params (`nonce` override optional).
+  - stage ordering is fixed and stable (decision, trade-plan, execution, portfolio).
+  - pipeline summary ordering is deterministic for outputs, KPIs, flags, warnings.
+- Pipeline summary artifact contract:
+  - `artifact_schema_version = "pipeline_run_artifact.v1"`
+  - validate with `pmx.pipeline.validate_artifact.validate_pipeline_run_artifact(...)`
+  - mandatory reproducibility hashes:
+    - `pipeline_policy_hash`
+    - `pipeline_outputs_hash`
+    - `pipeline_payload_hash`.

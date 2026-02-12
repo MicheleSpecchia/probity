@@ -193,6 +193,46 @@ python -m pmx.jobs.portfolio_from_execution `
   - `valuation_hash`
   - `portfolio_payload_hash`
 
+## End-to-End Pipeline Runner v1 (Milestone 10.6)
+- Pipeline runner is artifact-only and offline:
+  - input: forecast artifact JSON
+  - outputs: decision, trade plan, execution, portfolio, and pipeline summary artifacts
+  - no DB/network dependency for the orchestration step.
+- Run:
+```powershell
+python -m pmx.jobs.run_pipeline_stub `
+  --forecast-artifact tests/fixtures/forecast/forecast_artifact_sample.json `
+  --artifacts-root artifacts `
+  --min-edge-bps 50 `
+  --robust-mode require_positive_low90 `
+  --max-items 200 `
+  --sizing-mode fixed_notional `
+  --fixed-notional-usd 25 `
+  --max-orders 200 `
+  --max-total-notional-usd 5000 `
+  --max-notional-per-market-usd 500 `
+  --max-notional-per-category-usd 2000 `
+  --execution-mode dry_run `
+  --mark-source execution_price `
+  --fee-bps 0 `
+  --fee-usd 0
+```
+- Summary artifact:
+  - `artifacts/pipeline_runs/<run_id>.json`
+  - `artifact_schema_version = "pipeline_run_artifact.v1"`
+  - rerun with the same input artifact + params reproduces the same stage payload hashes
+    and pipeline payload hash.
+  - contains:
+    - input forecast hash/run id
+    - output stage run ids + payload hashes
+    - aggregate KPIs (`n_decisions`, `n_orders`, `n_rejected`, `n_positions`,
+      planned/executed notional, unrealized PnL)
+    - merged `quality_flags` / `quality_warnings`
+    - reproducibility hashes:
+      - `pipeline_policy_hash`
+      - `pipeline_outputs_hash`
+      - `pipeline_payload_hash`
+
 ## Determinism policy
 - Canonical JSON hashing is centralized in `pmx.forecast.canonical`:
   - sorted object keys
