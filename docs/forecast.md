@@ -87,6 +87,43 @@ python -m pmx.jobs.decide_from_forecast `
   - `decision_items_hash`
   - `decision_payload_hash`
 
+## Trade Plan Layer v1 (Milestone 10.3)
+- Trade-plan job is artifact-only and does not require DB access:
+  - input: decision artifact JSON
+  - output: `artifacts/trade_plans/<run_id>.json`
+- Run:
+```powershell
+python -m pmx.jobs.trade_plan_from_decision `
+  --decision-artifact artifacts/decisions/<decision_run_id>.json `
+  --max-orders 200 `
+  --max-total-notional-usd 5000 `
+  --max-notional-per-market-usd 500 `
+  --max-notional-per-category-usd 2000 `
+  --sizing-mode fixed_notional `
+  --fixed-notional-usd 25 `
+  --artifacts-root artifacts
+```
+- Policy (`trade_plan_policy.v1`) transforms decision rows into:
+  - `orders`: deterministic paper execution stubs for tradable items.
+  - `skipped`: deterministic exclusions for `NO_TRADE`, quality blocks, and cap
+    limits.
+- Sizing modes:
+  - `fixed_notional`: constant `fixed_notional_usd` per order.
+  - `scaled_by_edge`: `base_notional_usd * clamp(abs(edge_bps)/target_edge_bps, min_scale, max_scale)`.
+- Risk caps (no partial fills in v1):
+  - `max_orders`
+  - `max_total_notional_usd`
+  - `max_notional_per_market_usd`
+  - `max_notional_per_category_usd`
+- Trade-plan artifact schema:
+  - `artifact_schema_version = "trade_plan_artifact.v1"`
+  - validator:
+    - `pmx.trade_plan.validate_artifact.validate_trade_plan_artifact(...)`
+- Trade-plan hashes:
+  - `policy_hash`
+  - `orders_hash`
+  - `trade_plan_payload_hash`
+
 ## Determinism policy
 - Canonical JSON hashing is centralized in `pmx.forecast.canonical`:
   - sorted object keys

@@ -351,3 +351,34 @@ Each forecast output is expected to include:
     - `policy_hash`
     - `decision_items_hash`
     - `decision_payload_hash`.
+
+## Trade plan layer v1 guardrails
+- Trade-plan generation is artifact-only:
+  - read decision artifact JSON
+  - produce trade-plan artifact JSON
+  - no DB dependency for sanity runs.
+- Trade-plan policy contract (`trade_plan_policy.v1`):
+  - convert tradable decision rows into deterministic paper orders.
+  - `edge_bps > 0` maps to `BUY_YES`; `edge_bps < 0` maps to `BUY_NO`.
+  - `edge_bps == 0` must be skipped with `reason_code=zero_edge`.
+  - deterministic sizing:
+    - fixed notional mode
+    - scaled-by-edge mode with explicit clamp.
+- Risk caps are deterministic and blocking-only (no partial fills):
+  - `max_orders`
+  - `max_total_notional_usd`
+  - `max_notional_per_market_usd`
+  - `max_notional_per_category_usd`
+  - quality blocking flags produce `blocked_by_quality_flag:<flag>`.
+- Ordering rules:
+  - candidate scan for cap enforcement:
+    `abs(edge_bps) DESC`, `market_id ASC`, `token_id ASC`
+  - `orders` preserve accepted scan order
+  - `skipped` sorted by `reason_code`, then `market_id`, `token_id`.
+- Trade-plan artifact contract:
+  - `artifact_schema_version = "trade_plan_artifact.v1"`
+  - validate with `pmx.trade_plan.validate_artifact.validate_trade_plan_artifact(...)`
+  - required reproducibility hashes:
+    - `policy_hash`
+    - `orders_hash`
+    - `trade_plan_payload_hash`.
