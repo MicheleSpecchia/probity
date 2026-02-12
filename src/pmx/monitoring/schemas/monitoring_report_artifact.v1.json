@@ -1,0 +1,205 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pmx.monitoring.monitoring_report_artifact.v1",
+  "title": "Monitoring Report Artifact v1",
+  "type": "object",
+  "required": [
+    "artifact_schema_version",
+    "run_id",
+    "generated_at_utc",
+    "code_version",
+    "config_hash",
+    "monitoring_policy_version",
+    "params",
+    "health_status",
+    "health_summary",
+    "quality_flags",
+    "quality_warnings",
+    "input_pipeline_artifact_hash",
+    "monitoring_policy_hash",
+    "monitoring_inputs_hash",
+    "monitoring_payload_hash"
+  ],
+  "properties": {
+    "artifact_schema_version": {
+      "type": "string",
+      "const": "monitoring_report_artifact.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "code_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "config_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "monitoring_policy_version": {
+      "type": "string",
+      "const": "monitoring_policy.v1"
+    },
+    "params": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "health_status": {
+      "type": "string",
+      "enum": [
+        "OK",
+        "WARN",
+        "FAIL"
+      ]
+    },
+    "health_summary": {
+      "type": "object",
+      "required": [
+        "n_flags",
+        "n_warnings",
+        "n_fail_codes",
+        "fail_codes",
+        "sources"
+      ],
+      "properties": {
+        "n_flags": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_warnings": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "n_fail_codes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fail_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "sources": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": [
+              "flags",
+              "warnings"
+            ],
+            "properties": {
+              "flags": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "warnings": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "quality_flags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "quality_warnings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "message": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "input_pipeline_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "input_pipeline_artifact_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_forecast_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "input_forecast_artifact_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_performance_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "input_performance_artifact_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_risk_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "input_risk_artifact_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "monitoring_policy_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "monitoring_inputs_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "monitoring_payload_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": true
+}

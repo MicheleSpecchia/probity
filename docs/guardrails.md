@@ -476,3 +476,57 @@ Each forecast output is expected to include:
     - `performance_policy_hash`
     - `performance_inputs_hash`
     - `performance_payload_hash`.
+
+## Risk policy v1 guardrails
+- Risk gating is artifact-only and deterministic:
+  - primary input is `trade_plan_artifact.v1`
+  - optional secondary input is `performance_report_artifact.v1`
+  - optional hooks input can carry current exposures and cooldown state.
+- Verdict contract per order:
+  - `ALLOW`
+  - `BLOCK`
+  - `DOWNSIZE` (deterministic, only when enabled and above min notional)
+- Mandatory deterministic rule ordering:
+  1. hard quality/cooldown blocks
+  2. cap checks (global/market/category)
+  3. concentration checks
+  4. optional downsize fallback
+- Risk artifact contract:
+  - `artifact_schema_version = "risk_artifact.v1"`
+  - validate with `pmx.risk.validate_artifact.validate_risk_artifact(...)`
+  - required hashes:
+    - `policy_hash`
+    - `items_hash`
+    - `risk_payload_hash`.
+
+## Audit bundle v1 guardrails
+- Audit bundle is the deterministic lineage artifact joining:
+  - forecast -> decision -> trade_plan -> execution -> portfolio -> pipeline
+  - optional: performance, risk
+- Bundle construction rules:
+  - stage events are ordered deterministically by canonical stage order
+  - event payload hashes and run IDs are carried through unchanged
+  - quality flags/warnings are merged deterministically.
+- Audit bundle artifact contract:
+  - `artifact_schema_version = "audit_bundle_artifact.v1"`
+  - validate with
+    `pmx.audit_bundle.validate_artifact.validate_audit_bundle_artifact(...)`
+  - required hashes:
+    - `bundle_hash`
+    - `audit_bundle_policy_hash`
+    - `audit_bundle_payload_hash`.
+
+## Monitoring v1 guardrails
+- Monitoring is artifact-only and deterministic, with no DB/network dependency.
+- Health escalation policy:
+  - `FAIL`: any critical block reason (`critical_*`) detected from risk outputs
+  - `WARN`: any non-critical quality flags/warnings present
+  - `OK`: no quality signals.
+- Monitoring artifact contract:
+  - `artifact_schema_version = "monitoring_report_artifact.v1"`
+  - validate with
+    `pmx.monitoring.validate_artifact.validate_monitoring_report_artifact(...)`
+  - required hashes:
+    - `monitoring_policy_hash`
+    - `monitoring_inputs_hash`
+    - `monitoring_payload_hash`.

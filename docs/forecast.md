@@ -263,6 +263,89 @@ python -m pmx.jobs.performance_from_portfolio `
   - `performance_inputs_hash`
   - `performance_payload_hash`
 
+## Risk Policy v1 (Milestone 11)
+- Risk job is artifact-only and offline:
+  - input: trade-plan artifact JSON
+  - optional input: performance report artifact JSON
+  - optional input: hooks JSON (current exposure/cooldown state)
+  - output: `artifacts/risks/<run_id>.json`
+- Run:
+```powershell
+python -m pmx.jobs.risk_from_trade_plan `
+  --trade-plan-artifact artifacts/trade_plans/<trade_plan_run_id>.json `
+  --performance-artifact artifacts/performance/<performance_run_id>.json `
+  --hooks-json tests/fixtures/risk/risk_hooks_sample.json `
+  --artifacts-root artifacts
+```
+- Policy (`risk_policy.v1`) evaluates each trade-plan order with deterministic verdicts:
+  - `ALLOW`
+  - `BLOCK`
+  - `DOWNSIZE` (when partial room exists and downsize is enabled)
+- Deterministic rule families:
+  - hard quality blocks (`illiquid`, `stale`, `insufficient_data`, etc.)
+  - global / per-market / per-category notional caps
+  - concentration caps (`top1`, `top3`)
+  - optional cooldown hooks (`token`, `market`)
+  - optional performance concentration guards.
+- Risk artifact schema:
+  - `artifact_schema_version = "risk_artifact.v1"`
+  - validator:
+    - `pmx.risk.validate_artifact.validate_risk_artifact(...)`
+- Risk hashes:
+  - `policy_hash`
+  - `items_hash`
+  - `risk_payload_hash`
+
+## Audit Bundle v1 (Milestone 11)
+- Audit-bundle job is artifact-only and offline:
+  - required input: pipeline run artifact JSON
+  - optional inputs: forecast override, performance artifact, risk artifact
+  - output: `artifacts/audit_bundles/<run_id>.json`
+- Run:
+```powershell
+python -m pmx.jobs.build_audit_bundle `
+  --pipeline-artifact artifacts/pipeline_runs/<pipeline_run_id>.json `
+  --performance-artifact artifacts/performance/<performance_run_id>.json `
+  --risk-artifact artifacts/risks/<risk_run_id>.json `
+  --artifacts-root artifacts
+```
+- Bundle contract:
+  - `artifact_schema_version = "audit_bundle_artifact.v1"`
+  - ordered lineage over stages (`forecast`, `decision`, `trade_plan`, `execution`,
+    `portfolio`, `pipeline`, optional `performance`, optional `risk`)
+  - carries per-stage hashes, run IDs, code/config identifiers when available.
+- Audit bundle hashes:
+  - `bundle_hash`
+  - `audit_bundle_policy_hash`
+  - `audit_bundle_payload_hash`
+
+## Monitoring v1 (Milestone 11)
+- Monitoring job is artifact-only and offline:
+  - required input: pipeline run artifact JSON
+  - optional inputs: forecast/performance/risk artifacts
+  - output: `artifacts/monitoring/<run_id>.json`
+- Run:
+```powershell
+python -m pmx.jobs.monitor_from_pipeline `
+  --pipeline-artifact artifacts/pipeline_runs/<pipeline_run_id>.json `
+  --performance-artifact artifacts/performance/<performance_run_id>.json `
+  --risk-artifact artifacts/risks/<risk_run_id>.json `
+  --artifacts-root artifacts
+```
+- Health semantics (`monitoring_policy.v1`):
+  - `FAIL` when critical block reasons are detected (e.g. `critical_*` in risk
+    block reasons / flags).
+  - `WARN` when quality flags/warnings are present without critical failures.
+  - `OK` otherwise.
+- Monitoring artifact schema:
+  - `artifact_schema_version = "monitoring_report_artifact.v1"`
+  - validator:
+    - `pmx.monitoring.validate_artifact.validate_monitoring_report_artifact(...)`
+- Monitoring hashes:
+  - `monitoring_policy_hash`
+  - `monitoring_inputs_hash`
+  - `monitoring_payload_hash`
+
 ## Determinism policy
 - Canonical JSON hashing is centralized in `pmx.forecast.canonical`:
   - sorted object keys

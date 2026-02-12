@@ -1,0 +1,22 @@
+[
+  {
+    "artifact_path": "artifacts/forecasts/forecast-run.json",
+    "code_version": "code-forecast",
+    "config_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "generated_at_utc": "2026-02-10T00:00:00+00:00",
+    "payload_hash": "1111111111111111111111111111111111111111111111111111111111111111",
+    "policy_hash": null,
+    "run_id": "forecast-run",
+    "stage": "forecast"
+  },
+  {
+    "artifact_path": "artifacts/decisions/decision-run.json",
+    "code_version": "code-decision",
+    "config_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "generated_at_utc": "2026-02-10T04:00:00+00:00",
+    "payload_hash": "2222222222222222222222222222222222222222222222222222222222222222",
+    "policy_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+    "run_id": "decision-run",
+    "stage": "decision"
+  }
+]
