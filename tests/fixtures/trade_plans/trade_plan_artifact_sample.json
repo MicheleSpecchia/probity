@@ -1,0 +1,130 @@
+{
+  "artifact_schema_version": "trade_plan_artifact.v1",
+  "run_id": "trade-plan-run-sample",
+  "code_version": "tradeplancode1234",
+  "config_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "generated_at_utc": "2026-02-03T00:00:00+00:00",
+  "input_decision_run_id": "decision-run-sample",
+  "input_forecast_run_id": "forecast-run-sample",
+  "input_decision_artifact_hash": "3333333333333333333333333333333333333333333333333333333333333333",
+  "forecast_payload_hash": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "dataset_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "model_hash": "9999999999999999999999999999999999999999999999999999999999999999",
+  "calibration_hash": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "uncertainty_hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "policy_version": "trade_plan_policy.v1",
+  "decision_policy_hash": "1212121212121212121212121212121212121212121212121212121212121212",
+  "params": {
+    "max_orders": 200,
+    "max_total_notional_usd": 5000.0,
+    "max_notional_per_market_usd": 500.0,
+    "max_notional_per_category_usd": 2000.0,
+    "sizing_mode": "fixed_notional",
+    "fixed_notional_usd": 100.0,
+    "base_notional_usd": 25.0,
+    "target_edge_bps": 100.0,
+    "min_scale": 0.5,
+    "max_scale": 2.0
+  },
+  "orders": [
+    {
+      "rank": 1,
+      "market_id": "mkt-b",
+      "token_id": "tok-b",
+      "category": "politics",
+      "action": "TRADE",
+      "decision_action": "BUY_NO",
+      "side": "BUY_NO",
+      "notional_usd": 100.0,
+      "price": 0.55,
+      "quantity": 181.82,
+      "edge_bps": -1100.0,
+      "quality_flags": [],
+      "quality_warnings": [],
+      "no_trade_reasons": []
+    },
+    {
+      "rank": 2,
+      "market_id": "mkt-a",
+      "token_id": "tok-a",
+      "category": "politics",
+      "action": "TRADE",
+      "decision_action": "BUY_YES",
+      "side": "BUY_YES",
+      "notional_usd": 100.0,
+      "price": 0.52,
+      "quantity": 192.31,
+      "edge_bps": 800.0,
+      "quality_flags": [],
+      "quality_warnings": [],
+      "no_trade_reasons": []
+    },
+    {
+      "rank": 3,
+      "market_id": "mkt-e",
+      "token_id": "tok-e",
+      "category": "politics",
+      "action": "TRADE",
+      "decision_action": "BUY_YES",
+      "side": "BUY_YES",
+      "notional_usd": 100.0,
+      "price": 0.61,
+      "quantity": 163.93,
+      "edge_bps": 200.0,
+      "quality_flags": [],
+      "quality_warnings": [],
+      "no_trade_reasons": []
+    },
+    {
+      "rank": 4,
+      "market_id": "mkt-f",
+      "token_id": "tok-f",
+      "category": "finance",
+      "action": "TRADE",
+      "decision_action": "BUY_NO",
+      "side": "BUY_NO",
+      "notional_usd": 100.0,
+      "price": 0.45,
+      "quantity": 222.22,
+      "edge_bps": -200.0,
+      "quality_flags": [],
+      "quality_warnings": [],
+      "no_trade_reasons": []
+    }
+  ],
+  "skipped": [
+    {
+      "market_id": "mkt-c",
+      "token_id": "tok-c",
+      "reason_code": "blocked_by_quality_flag:illiquid",
+      "quality_flags": [
+        "illiquid"
+      ],
+      "quality_warnings": [
+        {
+          "code": "illiquid",
+          "message": "Depth below threshold"
+        }
+      ],
+      "no_trade_reasons": []
+    },
+    {
+      "market_id": "mkt-d",
+      "token_id": "tok-d",
+      "reason_code": "decision_no_trade:edge_below_threshold",
+      "quality_flags": [],
+      "quality_warnings": [],
+      "no_trade_reasons": [
+        "edge_below_threshold"
+      ]
+    }
+  ],
+  "counts": {
+    "n_total": 6,
+    "n_orders": 4,
+    "n_skipped": 2
+  },
+  "policy_hash": "d58c1a0453df9f6a0e4ca970646c714f1a4c84a792d0ffd82ee1d3ef03f79fbd",
+  "orders_hash": "798e7a96493282f267611fab38ff566de0de35281c0fe5e47c3698410286de1c",
+  "trade_plan_payload_hash": "347b130d926a43dd0b81ba9c4ae655684fecd1cc4525bd1e9e8dea8fae6a457e"
+}

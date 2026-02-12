@@ -124,6 +124,38 @@ python -m pmx.jobs.trade_plan_from_decision `
   - `orders_hash`
   - `trade_plan_payload_hash`
 
+## Execution Stub v1 (Milestone 10.4)
+- Execution job is artifact-only and does not require DB or network access:
+  - input: trade-plan artifact JSON
+  - output: `artifacts/executions/<run_id>.json`
+- Run:
+```powershell
+python -m pmx.jobs.execute_trade_plan_stub `
+  --trade-plan-artifact artifacts/trade_plans/<trade_plan_run_id>.json `
+  --mode simulate_submit `
+  --max-orders 200 `
+  --simulate-reject-modulo 0 `
+  --simulate-reject-remainder 0 `
+  --artifacts-root artifacts
+```
+- Execution policy (`execution_policy.v1`) behavior:
+  - accepts only `action="TRADE"` orders.
+  - deterministic `client_order_id` from:
+    `input_run_id|market_id|token_id|side|notional_usd|price|quantity`.
+  - deterministic idempotency key:
+    `sha256(trade_plan_payload_hash + "|" + trade_plan_policy_hash)`.
+  - simulated statuses:
+    - default `SIMULATED_SUBMITTED`
+    - optional deterministic rejection via token hash modulo rule.
+- Execution artifact schema:
+  - `artifact_schema_version = "execution_artifact.v1"`
+  - validator:
+    - `pmx.execution.validate_artifact.validate_execution_artifact(...)`
+- Execution hashes:
+  - `execution_policy_hash`
+  - `orders_hash`
+  - `execution_payload_hash`
+
 ## Determinism policy
 - Canonical JSON hashing is centralized in `pmx.forecast.canonical`:
   - sorted object keys

@@ -382,3 +382,26 @@ Each forecast output is expected to include:
     - `policy_hash`
     - `orders_hash`
     - `trade_plan_payload_hash`.
+
+## Execution stub v1 guardrails
+- Execution is offline and artifact-only:
+  - consumes trade-plan artifact
+  - emits execution artifact
+  - no broker/API network calls in this layer.
+- Execution policy contract (`execution_policy.v1`):
+  - executable inputs are only rows with `action="TRADE"`.
+  - no partial fills.
+  - deterministic order ordering:
+    `rank ASC`, `market_id ASC`, `token_id ASC`.
+  - deterministic reject simulation is optional and configured by
+    token hash modulo parameters (`simulate_reject_modulo`, `simulate_reject_remainder`).
+- Idempotency and reproducibility:
+  - `idempotency_key = sha256(trade_plan_payload_hash + "|" + trade_plan_policy_hash)`.
+  - deterministic `client_order_id` derived from stable order fields.
+- Execution artifact contract:
+  - `artifact_schema_version = "execution_artifact.v1"`
+  - validate with `pmx.execution.validate_artifact.validate_execution_artifact(...)`
+  - mandatory reproducibility hashes:
+    - `execution_policy_hash`
+    - `orders_hash`
+    - `execution_payload_hash`.

@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pmx.execution.execution_artifact.v1",
+  "title": "Execution Artifact v1",
+  "type": "object",
+  "required": [
+    "artifact_schema_version",
+    "run_id",
+    "generated_at_utc",
+    "code_version",
+    "config_hash",
+    "input_trade_plan_artifact_hash",
+    "execution_policy_version",
+    "execution_policy_hash",
+    "params",
+    "idempotency_key",
+    "orders",
+    "skipped",
+    "orders_hash",
+    "execution_payload_hash"
+  ],
+  "properties": {
+    "artifact_schema_version": {
+      "type": "string",
+      "const": "execution_artifact.v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "generated_at_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "code_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "config_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_trade_plan_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "input_trade_plan_artifact_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "input_decision_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "input_forecast_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "forecast_payload_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "dataset_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "model_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "calibration_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "uncertainty_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "decision_payload_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "decision_policy_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "trade_plan_payload_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "trade_plan_policy_hash": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "execution_policy_version": {
+      "type": "string",
+      "const": "execution_policy.v1"
+    },
+    "execution_policy_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "params": {
+      "type": "object",
+      "required": [
+        "mode",
+        "max_orders",
+        "simulate_reject_modulo",
+        "simulate_reject_remainder"
+      ],
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "dry_run",
+            "simulate_submit"
+          ]
+        },
+        "max_orders": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "simulate_reject_modulo": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "simulate_reject_remainder": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": true
+    },
+    "idempotency_key": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}\\|[0-9a-f]{64}$"
+    },
+    "orders": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "rank",
+          "client_order_id",
+          "market_id",
+          "token_id",
+          "side",
+          "price",
+          "quantity",
+          "notional_usd",
+          "status"
+        ],
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "client_order_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "market_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "token_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "BUY_YES",
+              "BUY_NO"
+            ]
+          },
+          "price": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "notional_usd": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SIMULATED_SUBMITTED",
+              "SIMULATED_REJECTED"
+            ]
+          },
+          "reject_reason_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "skipped": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "market_id",
+          "token_id",
+          "reason_code",
+          "quality_flags",
+          "quality_warnings",
+          "no_trade_reasons"
+        ],
+        "properties": {
+          "market_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "token_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason_code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "quality_flags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "quality_warnings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "code"
+              ],
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "message": {
+                  "type": "string"
+                },
+                "detail": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "no_trade_reasons": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "orders_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "execution_payload_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": true
+}
