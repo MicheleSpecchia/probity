@@ -411,10 +411,7 @@ class ClobRestClient:
         sign_with_query: bool = True,
         base_url_override: str | None = None,
     ) -> Any:
-        base_url = (
-            _optional_text(base_url_override)
-            or self.config.base_url
-        )
+        base_url = _optional_text(base_url_override) or self.config.base_url
         url = f"{base_url.rstrip('/')}/{path.lstrip('/')}"
         sorted_params = sorted(params.items())
         per_request_headers = (
