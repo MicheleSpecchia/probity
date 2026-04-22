@@ -148,40 +148,31 @@ def extract_market_tokens(payload: Mapping[str, Any], *, market_id: str) -> list
                 )
 
     if not out:
-        clob_token_ids = _as_list(payload.get("clobTokenIds"))
-        outcomes = _as_list(payload.get("outcomes"))
-        if isinstance(clob_token_ids, list) and isinstance(outcomes, list):
-            for outcome_value, token_id_value in zip(outcomes, clob_token_ids, strict=False):
-                token_id = _as_text(token_id_value)
-                outcome = _as_text(outcome_value)
-                if token_id and outcome:
-                    out.append(
-                        MarketTokenRecord(
-                            market_id=market_id,
-                            outcome=outcome,
-                            token_id=token_id,
-                        )
-                    )
+        outcomes = _coerce_json_list(payload.get("outcomes"))
+        clob_token_ids = _coerce_json_list(payload.get("clobTokenIds"))
+        if outcomes is None or clob_token_ids is None:
+            return []
 
-    if not out:
-        mapping = _as_mapping(payload.get("tokenIdsByOutcome"))
-        if isinstance(mapping, Mapping):
-            for outcome_key, token_id_value in mapping.items():
-                token_id = _as_text(token_id_value)
-                outcome = _as_text(outcome_key)
-                if token_id and outcome:
-                    out.append(
-                        MarketTokenRecord(
-                            market_id=market_id,
-                            outcome=outcome,
-                            token_id=token_id,
-                        )
+        pair_count = min(len(outcomes), len(clob_token_ids))
+        for index in range(pair_count):
+            token_id = _as_text(clob_token_ids[index])
+            outcome = _as_text(outcomes[index])
+            if token_id and outcome:
+                out.append(
+                    MarketTokenRecord(
+                        market_id=market_id,
+                        outcome=outcome,
+                        token_id=token_id,
                     )
+                )
 
     deduped: dict[tuple[str, str], MarketTokenRecord] = {}
     for token in out:
         deduped[(token.market_id, token.outcome)] = token
-    return list(deduped.values())
+    return sorted(
+        deduped.values(),
+        key=lambda token: (token.market_id, token.outcome, token.token_id),
+    )
 
 
 def market_sort_key(payload: Mapping[str, Any]) -> tuple[str, str]:
@@ -224,13 +215,13 @@ def _as_text(value: Any) -> str | None:
     return text if text else None
 
 
-def _as_list(value: Any) -> list[Any] | None:
+def _coerce_json_list(value: Any) -> list[Any] | None:
     if isinstance(value, list):
         return value
     if not isinstance(value, str):
         return None
     text = value.strip()
-    if not text:
+    if not text or not text.startswith("["):
         return None
     try:
         parsed = json.loads(text)
@@ -241,13 +232,13 @@ def _as_list(value: Any) -> list[Any] | None:
     return None
 
 
-def _as_mapping(value: Any) -> Mapping[str, Any] | None:
+def _coerce_json_mapping(value: Any) -> Mapping[str, Any] | None:
     if isinstance(value, Mapping):
         return value
     if not isinstance(value, str):
         return None
     text = value.strip()
-    if not text:
+    if not text or not text.startswith("{"):
         return None
     try:
         parsed = json.loads(text)

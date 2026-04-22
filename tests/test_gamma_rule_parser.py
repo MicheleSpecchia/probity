@@ -76,6 +76,6 @@ def test_normalize_market_payload_parses_stringified_outcomes_and_tokens() -> No
     )
 
     assert [(token.outcome, token.token_id) for token in tokens] == [
-        ("YES", "t-yes"),
         ("NO", "t-no"),
+        ("YES", "t-yes"),
     ]
