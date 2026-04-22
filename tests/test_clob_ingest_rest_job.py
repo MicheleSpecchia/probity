@@ -39,6 +39,9 @@ class _FakeRepository:
     def __init__(self, connection: Any) -> None:
         self.connection = connection
         self.tokens_requested: list[str] = []
+        self.snapshot_ingested_at: list[datetime] = []
+        self.trade_ingested_at: list[datetime] = []
+        self.candle_ingested_at: list[datetime] = []
         _FakeRepository.instances.append(self)
 
     def insert_run(self, **_: Any) -> None:
@@ -60,15 +63,23 @@ class _FakeRepository:
 
     def upsert_orderbook_snapshot(self, snapshot: Any, *, ingested_at: Any) -> None:
         self.tokens_requested.append(snapshot.token_id)
+        self.snapshot_ingested_at.append(ingested_at)
         return
 
     def upsert_trade(self, trade: Any, *, ingested_at: Any) -> None:
         self.tokens_requested.append(trade.token_id)
+        self.trade_ingested_at.append(ingested_at)
         return
 
     def upsert_candle(self, candle: Any, *, ingested_at: Any) -> None:
         self.tokens_requested.append(candle.token_id)
+        self.candle_ingested_at.append(ingested_at)
         return
+
+
+class _FakeRepositorySingleToken(_FakeRepository):
+    def list_token_ingest_refs(self, *, max_tokens: int | None) -> list[Any]:
+        return [SimpleNamespace(token_id="token-a", condition_id="cond-a")]
 
 
 class _FakeClobClient:
@@ -252,6 +263,71 @@ class _FakeClobClientPublicFallback:
         ]
 
 
+class _FakeClobClientDeterministic:
+    instances: ClassVar[list[_FakeClobClientDeterministic]] = []
+
+    def __init__(self, config: Any) -> None:
+        self.config = config
+        _FakeClobClientDeterministic.instances.append(self)
+
+    def get_orderbook(
+        self,
+        token_id: str,
+        *,
+        fallback_event_ts: datetime | None = None,
+    ) -> OrderbookSnapshot | None:
+        return OrderbookSnapshot(
+            token_id=token_id,
+            event_ts=datetime(2026, 1, 1, tzinfo=UTC),
+            bids=[{"price": "0.50000000", "size": "10.00000000"}],
+            asks=[{"price": "0.51000000", "size": "10.00000000"}],
+            mid=Decimal("0.50500000"),
+        )
+
+    def get_trades(self, token_id: str, *, since_ts: datetime | None) -> list[TradeRecord]:
+        return [
+            TradeRecord(
+                token_id=token_id,
+                event_ts=datetime(2026, 1, 1, 0, 0, 1, tzinfo=UTC),
+                price=Decimal("0.50000000"),
+                size=Decimal("1.00000000"),
+                side="buy",
+                trade_hash="h1",
+                seq=1,
+            )
+        ]
+
+    def get_market_trades(
+        self,
+        condition_id: str,
+        *,
+        token_id: str,
+        since_ts: datetime | None,
+    ) -> list[TradeRecord]:
+        return []
+
+    def get_candles(
+        self,
+        token_id: str,
+        *,
+        interval: str,
+        since_ts: datetime | None,
+    ) -> list[CandleRecord]:
+        return [
+            CandleRecord(
+                token_id=token_id,
+                interval=interval,
+                start_ts=datetime(2026, 1, 1, 0, 0, tzinfo=UTC),
+                end_ts=datetime(2026, 1, 1, 0, 1, tzinfo=UTC),
+                o=Decimal("0.40000000"),
+                h=Decimal("0.60000000"),
+                low=Decimal("0.39000000"),
+                c=Decimal("0.50000000"),
+                v=Decimal("5.00000000"),
+            )
+        ]
+
+
 def test_clob_ingest_rest_sorts_tokens_and_continues_on_token_error(
     monkeypatch: Any,
     caplog: Any,
@@ -401,3 +477,72 @@ def test_clob_ingest_rest_uses_public_market_trades_fallback(
     if not isinstance(extra_fields, dict):
         raise AssertionError("Expected structured extra_fields dict on log record")
     assert extra_fields.get("skip_reasons") == ["book_not_found"]
+
+
+def test_clob_ingest_rest_default_now_mode_uses_single_run_ingested_at(monkeypatch: Any) -> None:
+    _FakeRepository.instances.clear()
+    _FakeClobClientDeterministic.instances.clear()
+    monkeypatch.setattr("pmx.jobs.clob_ingest_rest.get_database_url", lambda: "postgresql://fake")
+    monkeypatch.setattr(
+        "pmx.jobs.clob_ingest_rest.psycopg.connect",
+        lambda *args, **kwargs: _FakeConnectionContext(),
+    )
+    monkeypatch.setattr("pmx.jobs.clob_ingest_rest.ClobRepository", _FakeRepositorySingleToken)
+    monkeypatch.setattr("pmx.jobs.clob_ingest_rest.ClobRestClient", _FakeClobClientDeterministic)
+
+    before_run = datetime.now(tz=UTC)
+    stats = run_clob_ingest_rest(
+        config=ClobIngestRestConfig(
+            clob_base_url="https://clob.polymarket.com",
+            data_api_base_url="https://data-api.polymarket.com",
+            clob_timeout_seconds=20,
+            clob_rate_limit_rps=5.0,
+            ingest_epsilon_seconds=300,
+        ),
+        max_tokens=1,
+        since_ts=datetime(2026, 1, 1, tzinfo=UTC),
+        interval="1m",
+    )
+    after_run = datetime.now(tz=UTC)
+
+    assert stats["tokens_processed"] == 1
+    assert stats["token_errors"] == 0
+    repo = _FakeRepository.instances[0]
+    all_ingested_at = repo.snapshot_ingested_at + repo.trade_ingested_at + repo.candle_ingested_at
+    assert len(all_ingested_at) == 3
+    assert len(set(all_ingested_at)) == 1
+    assert before_run <= all_ingested_at[0] <= after_run
+
+
+def test_clob_ingest_rest_event_ts_mode_assigns_event_ts_plus_latency(monkeypatch: Any) -> None:
+    _FakeRepository.instances.clear()
+    _FakeClobClientDeterministic.instances.clear()
+    monkeypatch.setattr("pmx.jobs.clob_ingest_rest.get_database_url", lambda: "postgresql://fake")
+    monkeypatch.setattr(
+        "pmx.jobs.clob_ingest_rest.psycopg.connect",
+        lambda *args, **kwargs: _FakeConnectionContext(),
+    )
+    monkeypatch.setattr("pmx.jobs.clob_ingest_rest.ClobRepository", _FakeRepositorySingleToken)
+    monkeypatch.setattr("pmx.jobs.clob_ingest_rest.ClobRestClient", _FakeClobClientDeterministic)
+
+    stats = run_clob_ingest_rest(
+        config=ClobIngestRestConfig(
+            clob_base_url="https://clob.polymarket.com",
+            data_api_base_url="https://data-api.polymarket.com",
+            clob_timeout_seconds=20,
+            clob_rate_limit_rps=5.0,
+            ingest_epsilon_seconds=300,
+        ),
+        max_tokens=1,
+        since_ts=datetime(2026, 1, 1, tzinfo=UTC),
+        interval="1m",
+        ingested_at_mode="event_ts",
+        ingest_latency_seconds=7,
+    )
+
+    assert stats["tokens_processed"] == 1
+    assert stats["token_errors"] == 0
+    repo = _FakeRepository.instances[0]
+    assert repo.snapshot_ingested_at == [datetime(2026, 1, 1, 0, 0, 7, tzinfo=UTC)]
+    assert repo.trade_ingested_at == [datetime(2026, 1, 1, 0, 0, 8, tzinfo=UTC)]
+    assert repo.candle_ingested_at == [datetime(2026, 1, 1, 0, 0, 7, tzinfo=UTC)]

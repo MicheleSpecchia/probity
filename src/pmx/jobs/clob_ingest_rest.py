@@ -5,7 +5,7 @@ import logging
 import os
 import time
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -28,6 +28,7 @@ from pmx.ingest.clob_client import (
 
 JOB_NAME = "clob_ingest_rest"
 _ALLOWED_INTERVALS = {"1m", "5m", "1h"}
+_ALLOWED_INGESTED_AT_MODES = {"now", "event_ts"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,6 +56,8 @@ def main(argv: list[str] | None = None) -> int:
     since_ts = _parse_optional_datetime_arg(args.since_ts)
     if args.max_tokens is not None and args.max_tokens <= 0:
         raise ValueError("--max-tokens must be > 0")
+    if args.ingest_latency_seconds < 0:
+        raise ValueError("--ingest-latency-seconds must be >= 0")
 
     config = load_clob_ingest_rest_config()
     stats = run_clob_ingest_rest(
@@ -62,6 +65,8 @@ def main(argv: list[str] | None = None) -> int:
         max_tokens=args.max_tokens,
         since_ts=since_ts,
         interval=args.interval,
+        ingested_at_mode=args.ingested_at_mode,
+        ingest_latency_seconds=args.ingest_latency_seconds,
     )
     return 0 if stats["token_errors"] == 0 else 1
 
@@ -72,6 +77,8 @@ def run_clob_ingest_rest(
     max_tokens: int | None,
     since_ts: datetime | None,
     interval: str,
+    ingested_at_mode: str = "now",
+    ingest_latency_seconds: int = 0,
 ) -> dict[str, int]:
     database_url = get_database_url()
     if not database_url:
@@ -79,6 +86,13 @@ def run_clob_ingest_rest(
     if interval not in _ALLOWED_INTERVALS:
         allowed = ", ".join(sorted(_ALLOWED_INTERVALS))
         raise ValueError(f"Unsupported interval {interval!r}. Allowed: {allowed}")
+    if ingested_at_mode not in _ALLOWED_INGESTED_AT_MODES:
+        allowed_modes = ", ".join(sorted(_ALLOWED_INGESTED_AT_MODES))
+        raise ValueError(
+            f"Unsupported ingested_at_mode {ingested_at_mode!r}. Allowed: {allowed_modes}"
+        )
+    if ingest_latency_seconds < 0:
+        raise ValueError("ingest_latency_seconds must be >= 0")
 
     started_at = datetime.now(tz=UTC)
     run_context = build_run_context(
@@ -88,6 +102,8 @@ def run_clob_ingest_rest(
             "max_tokens": max_tokens,
             "since_ts": since_ts.isoformat() if since_ts else None,
             "interval": interval,
+            "ingested_at_mode": ingested_at_mode,
+            "ingest_latency_seconds": ingest_latency_seconds,
         },
         started_at=started_at,
     )
@@ -102,6 +118,8 @@ def run_clob_ingest_rest(
         since_ts=since_ts.isoformat() if since_ts else None,
         max_tokens=max_tokens,
         interval=interval,
+        ingested_at_mode=ingested_at_mode,
+        ingest_latency_seconds=ingest_latency_seconds,
     )
 
     client = ClobRestClient(
@@ -147,7 +165,9 @@ def run_clob_ingest_rest(
                     condition_id=token_ref.condition_id,
                     interval=interval,
                     since_ts=since_ts,
-                    ingested_at=started_at,
+                    run_ingested_at=started_at,
+                    ingested_at_mode=ingested_at_mode,
+                    ingest_latency_seconds=ingest_latency_seconds,
                     client=client,
                     repository=repository,
                 )
@@ -213,7 +233,9 @@ def _process_token(
     condition_id: str | None,
     interval: str,
     since_ts: datetime | None,
-    ingested_at: datetime,
+    run_ingested_at: datetime,
+    ingested_at_mode: str,
+    ingest_latency_seconds: int,
     client: ClobRestClient,
     repository: ClobRepository,
 ) -> tuple[TokenIngestStats, list[str]]:
@@ -223,7 +245,7 @@ def _process_token(
     candles_count = 0
 
     try:
-        snapshot = client.get_orderbook(token_id, fallback_event_ts=ingested_at)
+        snapshot = client.get_orderbook(token_id, fallback_event_ts=run_ingested_at)
     except ClobHttpError as exc:
         if exc.path == "/book" and exc.status_code == 404:
             snapshot = None
@@ -231,7 +253,13 @@ def _process_token(
         else:
             raise
     if snapshot is not None:
-        repository.upsert_orderbook_snapshot(snapshot, ingested_at=ingested_at)
+        snapshot_ingested_at = _resolve_ingested_at(
+            event_ts=snapshot.event_ts,
+            run_ingested_at=run_ingested_at,
+            ingested_at_mode=ingested_at_mode,
+            ingest_latency_seconds=ingest_latency_seconds,
+        )
+        repository.upsert_orderbook_snapshot(snapshot, ingested_at=snapshot_ingested_at)
         snapshot_count += 1
 
     try:
@@ -276,7 +304,13 @@ def _process_token(
             skip_reasons = [reason for reason in skip_reasons if not reason.startswith("trades_")]
 
     for trade in trades:
-        repository.upsert_trade(trade, ingested_at=ingested_at)
+        trade_ingested_at = _resolve_ingested_at(
+            event_ts=trade.event_ts,
+            run_ingested_at=run_ingested_at,
+            ingested_at_mode=ingested_at_mode,
+            ingest_latency_seconds=ingest_latency_seconds,
+        )
+        repository.upsert_trade(trade, ingested_at=trade_ingested_at)
         trades_count += 1
 
     try:
@@ -294,7 +328,13 @@ def _process_token(
         else:
             raise
     for candle in candles:
-        repository.upsert_candle(candle, ingested_at=ingested_at)
+        candle_ingested_at = _resolve_ingested_at(
+            event_ts=candle.start_ts,
+            run_ingested_at=run_ingested_at,
+            ingested_at_mode=ingested_at_mode,
+            ingest_latency_seconds=ingest_latency_seconds,
+        )
+        repository.upsert_candle(candle, ingested_at=candle_ingested_at)
         candles_count += 1
 
     stats = TokenIngestStats(
@@ -345,6 +385,21 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         choices=sorted(_ALLOWED_INTERVALS),
         default="1m",
         help="Candle interval to ingest.",
+    )
+    parser.add_argument(
+        "--ingested-at-mode",
+        choices=sorted(_ALLOWED_INGESTED_AT_MODES),
+        default="now",
+        help="Ingested-at assignment mode: now (default) or event_ts backfill mode.",
+    )
+    parser.add_argument(
+        "--ingest-latency-seconds",
+        type=int,
+        default=0,
+        help=(
+            "Applied when --ingested-at-mode=event_ts. "
+            "Sets ingested_at = event_ts + latency_seconds."
+        ),
     )
     return parser.parse_args(argv)
 
@@ -428,6 +483,24 @@ def _has_l2_auth_material(client: ClobRestClient) -> bool:
         and client.config.api_passphrase
         and client.config.poly_address
     )
+
+
+def _resolve_ingested_at(
+    *,
+    event_ts: datetime,
+    run_ingested_at: datetime,
+    ingested_at_mode: str,
+    ingest_latency_seconds: int,
+) -> datetime:
+    if ingested_at_mode == "event_ts":
+        return _as_utc_datetime(event_ts) + timedelta(seconds=ingest_latency_seconds)
+    return _as_utc_datetime(run_ingested_at)
+
+
+def _as_utc_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _log(

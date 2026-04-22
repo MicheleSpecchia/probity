@@ -153,8 +153,12 @@ No real ingestion/model/backtest implementation is included in this milestone.
   - `--since-ts` is inclusive:
     - trades: include rows with `event_ts >= since_ts`
     - candles: include rows with `start_ts >= since_ts`
-  - A single run-level `ingested_at` timestamp is applied to all inserted rows
-    in `orderbook_snapshots`, `trades`, and `candles`.
+  - `ingested_at` assignment mode is explicit and deterministic:
+    - default `--ingested-at-mode now`: single run-level timestamp applied to
+      `orderbook_snapshots`, `trades`, and `candles`
+    - optional `--ingested-at-mode event_ts`: per-row
+      `ingested_at = event_ts + --ingest-latency-seconds`
+      (`candles` anchor on `start_ts`)
   - Orderbook snapshot `event_ts` policy:
     - use API timestamp when available and parseable
     - fallback to run ingestion timestamp (`run_ingested_at`) when missing.

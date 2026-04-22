@@ -30,8 +30,10 @@
     on every `articles` row (no null timestamps).
   - News raw evidence is persisted in `articles.raw.gdelt` and
     `articles.raw.crawler` for replay/audit.
-  - CLOB REST ingestion stores a single run-level `ingested_at` timestamp
-    across `orderbook_snapshots`, `trades`, and `candles`.
+  - CLOB REST ingestion defaults to run-level `ingested_at` assignment
+    (`--ingested-at-mode now`), with opt-in deterministic backfill mode
+    (`--ingested-at-mode event_ts`) where per-row
+    `ingested_at = event_ts + latency`; candles anchor on `start_ts`.
   - As-of eligibility is still decided downstream with `decision_ts + epsilon`
     filters in backtest/forecast selection.
 
