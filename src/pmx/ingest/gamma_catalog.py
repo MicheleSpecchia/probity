@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -147,8 +148,8 @@ def extract_market_tokens(payload: Mapping[str, Any], *, market_id: str) -> list
                 )
 
     if not out:
-        clob_token_ids = payload.get("clobTokenIds")
-        outcomes = payload.get("outcomes")
+        clob_token_ids = _as_list(payload.get("clobTokenIds"))
+        outcomes = _as_list(payload.get("outcomes"))
         if isinstance(clob_token_ids, list) and isinstance(outcomes, list):
             for outcome_value, token_id_value in zip(outcomes, clob_token_ids, strict=False):
                 token_id = _as_text(token_id_value)
@@ -163,7 +164,7 @@ def extract_market_tokens(payload: Mapping[str, Any], *, market_id: str) -> list
                     )
 
     if not out:
-        mapping = payload.get("tokenIdsByOutcome")
+        mapping = _as_mapping(payload.get("tokenIdsByOutcome"))
         if isinstance(mapping, Mapping):
             for outcome_key, token_id_value in mapping.items():
                 token_id = _as_text(token_id_value)
@@ -221,6 +222,40 @@ def _as_text(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text if text else None
+
+
+def _as_list(value: Any) -> list[Any] | None:
+    if isinstance(value, list):
+        return value
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(parsed, list):
+        return parsed
+    return None
+
+
+def _as_mapping(value: Any) -> Mapping[str, Any] | None:
+    if isinstance(value, Mapping):
+        return value
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(parsed, Mapping):
+        return parsed
+    return None
 
 
 def _as_utc_datetime(value: datetime) -> datetime:

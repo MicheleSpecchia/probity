@@ -59,3 +59,23 @@ def test_normalize_market_payload_uses_stable_audit_namespace() -> None:
         "tokens",
         "z_last",
     ]
+
+
+def test_normalize_market_payload_parses_stringified_outcomes_and_tokens() -> None:
+    payload = {
+        "id": "m-2",
+        "title": "Sample market 2",
+        "status": "active",
+        "outcomes": '["YES","NO"]',
+        "clobTokenIds": '["t-yes","t-no"]',
+    }
+
+    _, tokens = normalize_market_payload(
+        payload,
+        ingested_at=datetime(2026, 1, 1, tzinfo=UTC),
+    )
+
+    assert [(token.outcome, token.token_id) for token in tokens] == [
+        ("YES", "t-yes"),
+        ("NO", "t-no"),
+    ]

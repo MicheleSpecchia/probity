@@ -19,7 +19,9 @@ from pmx.ingest.clob_client import (
     DEFAULT_CLOB_BASE_URL,
     DEFAULT_CLOB_RATE_LIMIT_RPS,
     DEFAULT_CLOB_TIMEOUT_SECONDS,
+    DEFAULT_DATA_API_BASE_URL,
     ClobClientConfig,
+    ClobHttpError,
     ClobRestClient,
     TradeRecord,
 )
@@ -31,6 +33,7 @@ _ALLOWED_INTERVALS = {"1m", "5m", "1h"}
 @dataclass(frozen=True, slots=True)
 class ClobIngestRestConfig:
     clob_base_url: str
+    data_api_base_url: str
     clob_timeout_seconds: int
     clob_rate_limit_rps: float
     ingest_epsilon_seconds: int
@@ -39,6 +42,7 @@ class ClobIngestRestConfig:
     def as_hash_dict(self) -> dict[str, Any]:
         return {
             "clob_base_url": self.clob_base_url,
+            "data_api_base_url": self.data_api_base_url,
             "clob_timeout_seconds": self.clob_timeout_seconds,
             "clob_rate_limit_rps": self.clob_rate_limit_rps,
             "clob_orderbook_depth": self.clob_orderbook_depth,
@@ -103,9 +107,13 @@ def run_clob_ingest_rest(
     client = ClobRestClient(
         ClobClientConfig(
             base_url=config.clob_base_url,
+            data_api_base_url=config.data_api_base_url,
             timeout_seconds=config.clob_timeout_seconds,
             rate_limit_rps=config.clob_rate_limit_rps,
             api_key=os.getenv("CLOB_API_KEY"),
+            api_secret=os.getenv("CLOB_API_SECRET"),
+            api_passphrase=os.getenv("CLOB_API_PASSPHRASE"),
+            poly_address=os.getenv("POLY_ADDRESS"),
             orderbook_depth=config.clob_orderbook_depth,
         )
     )
@@ -128,13 +136,15 @@ def run_clob_ingest_rest(
             code_version=run_context.code_version,
             config_hash=run_context.config_hash,
         )
-        token_ids = sorted(repository.list_token_ids(max_tokens=max_tokens))
+        token_refs = repository.list_token_ingest_refs(max_tokens=max_tokens)
 
-        for token_id in token_ids:
+        for token_ref in token_refs:
+            token_id = token_ref.token_id
             token_started = time.perf_counter()
             try:
-                token_stats = _process_token(
+                token_stats, skip_reasons = _process_token(
                     token_id=token_id,
+                    condition_id=token_ref.condition_id,
                     interval=interval,
                     since_ts=since_ts,
                     ingested_at=started_at,
@@ -143,12 +153,14 @@ def run_clob_ingest_rest(
                 )
             except Exception as exc:
                 stats["token_errors"] += 1
+                reason_code = _classify_failure_reason(exc)
                 _log(
                     logger,
                     logging.ERROR,
                     "clob_token_failed",
                     run_context,
                     token_id=token_id,
+                    reason_code=reason_code,
                     error_type=type(exc).__name__,
                     error_message=str(exc),
                 )
@@ -160,6 +172,16 @@ def run_clob_ingest_rest(
             stats["candles_upserted"] += token_stats.candles_upserted
             latency_ms = int((time.perf_counter() - token_started) * 1000)
 
+            if skip_reasons:
+                _log(
+                    logger,
+                    logging.WARNING,
+                    "clob_token_data_missing",
+                    run_context,
+                    token_id=token_id,
+                    skip_reasons=skip_reasons,
+                )
+
             _log(
                 logger,
                 logging.INFO,
@@ -170,6 +192,7 @@ def run_clob_ingest_rest(
                 snapshots_upserted=token_stats.snapshots_upserted,
                 trades_upserted=token_stats.trades_upserted,
                 candles_upserted=token_stats.candles_upserted,
+                skip_reasons=skip_reasons,
             )
 
     elapsed_seconds = int((datetime.now(tz=UTC) - started_at).total_seconds())
@@ -187,47 +210,105 @@ def run_clob_ingest_rest(
 def _process_token(
     *,
     token_id: str,
+    condition_id: str | None,
     interval: str,
     since_ts: datetime | None,
     ingested_at: datetime,
     client: ClobRestClient,
     repository: ClobRepository,
-) -> TokenIngestStats:
+) -> tuple[TokenIngestStats, list[str]]:
+    skip_reasons: list[str] = []
     snapshot_count = 0
     trades_count = 0
     candles_count = 0
 
-    snapshot = client.get_orderbook(token_id, fallback_event_ts=ingested_at)
+    try:
+        snapshot = client.get_orderbook(token_id, fallback_event_ts=ingested_at)
+    except ClobHttpError as exc:
+        if exc.path == "/book" and exc.status_code == 404:
+            snapshot = None
+            skip_reasons.append("book_not_found")
+        else:
+            raise
     if snapshot is not None:
         repository.upsert_orderbook_snapshot(snapshot, ingested_at=ingested_at)
         snapshot_count += 1
 
-    trades = sorted(
-        client.get_trades(token_id, since_ts=since_ts),
-        key=_trade_sort_key,
-    )
+    try:
+        trades = sorted(
+            client.get_trades(token_id, since_ts=since_ts),
+            key=_trade_sort_key,
+        )
+    except ClobHttpError as exc:
+        if exc.path in {"/trades", "/data/trades"} and exc.status_code == 401:
+            trades = []
+            if _has_l2_auth_material(client):
+                skip_reasons.append("trades_unauthorized")
+            else:
+                skip_reasons.append("trades_unauthorized_missing_l2_auth_material")
+        elif exc.path in {"/trades", "/data/trades"} and exc.status_code == 404:
+            trades = []
+            skip_reasons.append("trades_not_found")
+        else:
+            raise
+
+    if not trades and condition_id:
+        try:
+            fallback_trades = sorted(
+                client.get_market_trades(
+                    condition_id,
+                    token_id=token_id,
+                    since_ts=since_ts,
+                ),
+                key=_trade_sort_key,
+            )
+        except ClobHttpError as exc:
+            if exc.path == "/trades" and exc.status_code == 404:
+                fallback_trades = []
+                skip_reasons.append("trades_public_not_found")
+            elif exc.path == "/trades" and exc.status_code == 401:
+                fallback_trades = []
+                skip_reasons.append("trades_public_unauthorized")
+            else:
+                raise
+        if fallback_trades:
+            trades = fallback_trades
+            skip_reasons = [reason for reason in skip_reasons if not reason.startswith("trades_")]
+
     for trade in trades:
         repository.upsert_trade(trade, ingested_at=ingested_at)
         trades_count += 1
 
-    candles = sorted(
-        client.get_candles(token_id, interval=interval, since_ts=since_ts),
-        key=lambda candle: candle.start_ts,
-    )
+    try:
+        candles = sorted(
+            client.get_candles(token_id, interval=interval, since_ts=since_ts),
+            key=lambda candle: candle.start_ts,
+        )
+    except ClobHttpError as exc:
+        if exc.path == "/candles" and exc.status_code == 404:
+            candles = []
+            skip_reasons.append("candles_not_found")
+        elif exc.path == "/candles" and exc.status_code == 401:
+            candles = []
+            skip_reasons.append("candles_unauthorized")
+        else:
+            raise
     for candle in candles:
         repository.upsert_candle(candle, ingested_at=ingested_at)
         candles_count += 1
 
-    return TokenIngestStats(
+    stats = TokenIngestStats(
         token_id=token_id,
         snapshots_upserted=snapshot_count,
         trades_upserted=trades_count,
         candles_upserted=candles_count,
     )
+    return stats, sorted(set(skip_reasons))
 
 
 def load_clob_ingest_rest_config() -> ClobIngestRestConfig:
     clob_base_url = os.getenv("CLOB_BASE_URL", DEFAULT_CLOB_BASE_URL)
+    data_api_base_url = os.getenv("CLOB_DATA_API_BASE_URL", DEFAULT_DATA_API_BASE_URL)
     clob_timeout_seconds = _load_positive_int("CLOB_TIMEOUT_SECONDS", DEFAULT_CLOB_TIMEOUT_SECONDS)
     clob_rate_limit_rps = _load_positive_float("CLOB_RATE_LIMIT_RPS", DEFAULT_CLOB_RATE_LIMIT_RPS)
     clob_orderbook_depth = _load_optional_positive_int("CLOB_ORDERBOOK_DEPTH")
@@ -235,6 +316,7 @@ def load_clob_ingest_rest_config() -> ClobIngestRestConfig:
 
     return ClobIngestRestConfig(
         clob_base_url=clob_base_url,
+        data_api_base_url=data_api_base_url,
         clob_timeout_seconds=clob_timeout_seconds,
         clob_rate_limit_rps=clob_rate_limit_rps,
         clob_orderbook_depth=clob_orderbook_depth,
@@ -329,6 +411,22 @@ def _trade_sort_key(trade: TradeRecord) -> tuple[datetime, int, str]:
         trade.event_ts,
         trade.seq if trade.seq is not None else 0,
         trade.trade_hash or "",
+    )
+
+
+def _classify_failure_reason(exc: Exception) -> str:
+    if isinstance(exc, ClobHttpError):
+        path_key = exc.path.lstrip("/").replace("/", "_") or "root"
+        return f"http_{exc.status_code}_{path_key}"
+    return "unexpected_error"
+
+
+def _has_l2_auth_material(client: ClobRestClient) -> bool:
+    return bool(
+        client.config.api_key
+        and client.config.api_secret
+        and client.config.api_passphrase
+        and client.config.poly_address
     )
 
 

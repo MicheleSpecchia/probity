@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 import hashlib
+import hmac
 import json
 import time
 from collections.abc import Mapping
@@ -8,13 +10,16 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
+from urllib.parse import urlencode
 
 import requests
 
 DEFAULT_CLOB_BASE_URL = "https://clob.polymarket.com"
+DEFAULT_DATA_API_BASE_URL = "https://data-api.polymarket.com"
 DEFAULT_CLOB_TIMEOUT_SECONDS = 20
 DEFAULT_CLOB_RATE_LIMIT_RPS = 5.0
 DEFAULT_CLOB_USER_AGENT = "pmx-clob-client/0.1"
+_DATA_API_MAX_HISTORICAL_OFFSET = 3000
 
 _PRICE_QUANT = Decimal("0.00000001")
 _SIZE_QUANT = Decimal("0.00000001")
@@ -24,14 +29,34 @@ class ClobClientError(RuntimeError):
     """Raised when CLOB API requests fail after retry attempts."""
 
 
+class ClobHttpError(ClobClientError):
+    """Raised for non-retriable HTTP errors returned by CLOB."""
+
+    def __init__(self, *, status_code: int, path: str, body_snippet: str | None = None) -> None:
+        self.status_code = status_code
+        self.path = path
+        self.body_snippet = body_snippet
+
+        message = f"CLOB request failed with status={status_code} for {path}"
+        if body_snippet:
+            message = f"{message}: {body_snippet}"
+        super().__init__(message)
+
+
 @dataclass(frozen=True, slots=True)
 class ClobClientConfig:
     base_url: str = DEFAULT_CLOB_BASE_URL
+    data_api_base_url: str = DEFAULT_DATA_API_BASE_URL
     timeout_seconds: int = DEFAULT_CLOB_TIMEOUT_SECONDS
     rate_limit_rps: float = DEFAULT_CLOB_RATE_LIMIT_RPS
     max_retries: int = 4
     backoff_seconds: float = 0.5
+    data_api_page_size: int = 200
+    data_api_max_pages: int = 16
     api_key: str | None = None
+    api_secret: str | None = None
+    api_passphrase: str | None = None
+    poly_address: str | None = None
     orderbook_depth: int | None = None
 
 
@@ -76,19 +101,19 @@ class ClobRestClient:
         session: requests.Session | None = None,
         sleep_fn: Any = time.sleep,
         clock_fn: Any = time.monotonic,
+        epoch_seconds_fn: Any = time.time,
     ) -> None:
         self.config = config
         self.session = session or requests.Session()
         self.sleep_fn = sleep_fn
         self.clock_fn = clock_fn
+        self.epoch_seconds_fn = epoch_seconds_fn
         self._last_request_monotonic: float | None = None
 
         headers = {
             "Accept": "application/json",
             "User-Agent": DEFAULT_CLOB_USER_AGENT,
         }
-        if config.api_key:
-            headers["Authorization"] = f"Bearer {config.api_key}"
         self.session.headers.update(headers)
 
     def get_orderbook(
@@ -97,7 +122,7 @@ class ClobRestClient:
         *,
         fallback_event_ts: datetime | None = None,
     ) -> OrderbookSnapshot | None:
-        payload = self._request_json("/book", {"token_id": token_id})
+        payload = self._request_json("/book", {"token_id": token_id}, private=False)
         event_ts = _parse_optional_datetime(
             payload.get("event_ts")
             or payload.get("timestamp")
@@ -132,36 +157,157 @@ class ClobRestClient:
         since_ts: datetime | None = None,
     ) -> list[TradeRecord]:
         since_bound = _as_utc_datetime(since_ts) if since_ts is not None else None
-        params: dict[str, str] = {"token_id": token_id}
-        if since_bound is not None:
-            params["since"] = since_bound.isoformat()
-
-        payload = self._request_json("/trades", params)
-        rows = _extract_rows(payload, preferred_key="trades")
-
+        next_cursor = "MA=="
         output: list[TradeRecord] = []
-        for row in rows:
-            event_ts = _parse_optional_datetime(
-                row.get("event_ts")
-                or row.get("timestamp")
-                or row.get("ts")
-                or row.get("created_at")
-                or row.get("createdAt")
-            )
-            price = _parse_optional_decimal(row.get("price"), quant=_PRICE_QUANT)
-            size = _parse_optional_decimal(
-                row.get("size") or row.get("amount"),
-                quant=_SIZE_QUANT,
-            )
-            if event_ts is None or price is None or size is None:
-                continue
-            if since_bound is not None and event_ts < since_bound:
-                continue
+        max_pages = 64
 
-            side = _normalize_side(row.get("side"))
-            seq = _parse_optional_int(row.get("seq") or row.get("sequence"))
-            trade_hash = _optional_text(row.get("trade_hash") or row.get("hash") or row.get("id"))
-            if seq is None and trade_hash is None:
+        for _ in range(max_pages):
+            params = _build_data_trades_params(
+                token_id,
+                next_cursor=next_cursor,
+                since_ts=since_bound,
+            )
+            payload = self._request_json(
+                "/data/trades",
+                params,
+                private=True,
+                sign_with_query=False,
+            )
+            rows = _extract_rows(payload, preferred_key="trades")
+            for row in rows:
+                event_ts = _parse_optional_datetime(
+                    row.get("event_ts")
+                    or row.get("timestamp")
+                    or row.get("ts")
+                    or row.get("created_at")
+                    or row.get("createdAt")
+                )
+                price = _parse_optional_decimal(row.get("price"), quant=_PRICE_QUANT)
+                size = _parse_optional_decimal(
+                    row.get("size") or row.get("amount"),
+                    quant=_SIZE_QUANT,
+                )
+                if event_ts is None or price is None or size is None:
+                    continue
+                if since_bound is not None and event_ts < since_bound:
+                    continue
+
+                side = _normalize_side(row.get("side"))
+                seq = _parse_optional_int(row.get("seq") or row.get("sequence"))
+                trade_hash = _optional_text(
+                    row.get("trade_hash") or row.get("hash") or row.get("id")
+                )
+                if seq is None and trade_hash is None:
+                    trade_hash = build_trade_hash(
+                        token_id=token_id,
+                        event_ts=event_ts,
+                        price=price,
+                        size=size,
+                        side=side,
+                        extra_fields=_trade_identity_extra_fields(row),
+                    )
+
+                output.append(
+                    TradeRecord(
+                        token_id=token_id,
+                        event_ts=event_ts,
+                        price=price,
+                        size=size,
+                        side=side,
+                        trade_hash=trade_hash,
+                        seq=seq,
+                    )
+                )
+
+            if not isinstance(payload, Mapping):
+                break
+            cursor_raw = payload.get("next_cursor")
+            cursor = _optional_text(cursor_raw)
+            if cursor is None or cursor.upper() == "LTE=":
+                break
+            next_cursor = cursor
+
+        return output
+
+    def get_market_trades(
+        self,
+        condition_id: str,
+        *,
+        token_id: str,
+        since_ts: datetime | None = None,
+    ) -> list[TradeRecord]:
+        condition = _optional_text(condition_id)
+        if condition is None or not condition.startswith("0x"):
+            return []
+
+        since_bound = _as_utc_datetime(since_ts) if since_ts is not None else None
+        page_size = max(1, self.config.data_api_page_size)
+        max_pages = max(1, self.config.data_api_max_pages)
+        max_pages_by_offset = (_DATA_API_MAX_HISTORICAL_OFFSET // page_size) + 1
+        max_pages = min(max_pages, max_pages_by_offset)
+        output: list[TradeRecord] = []
+        seen_keys: set[tuple[str, datetime, int, str]] = set()
+
+        for page_index in range(max_pages):
+            params = {
+                "market": condition,
+                "limit": str(page_size),
+                "offset": str(page_index * page_size),
+            }
+            try:
+                payload = self._request_json(
+                    "/trades",
+                    params,
+                    private=False,
+                    base_url_override=self.config.data_api_base_url,
+                )
+            except ClobHttpError as exc:
+                if (
+                    exc.path == "/trades"
+                    and exc.status_code == 400
+                    and (exc.body_snippet or "").lower().find("offset") >= 0
+                ):
+                    break
+                raise
+            rows = _extract_rows(payload, preferred_key="trades")
+            if not rows:
+                break
+            oldest_page_ts: datetime | None = None
+
+            for row in rows:
+                page_event_ts = _parse_optional_datetime(
+                    row.get("event_ts")
+                    or row.get("timestamp")
+                    or row.get("ts")
+                    or row.get("created_at")
+                    or row.get("createdAt")
+                )
+                if page_event_ts is not None:
+                    if oldest_page_ts is None or page_event_ts < oldest_page_ts:
+                        oldest_page_ts = page_event_ts
+
+                row_token_id = _optional_text(
+                    row.get("asset")
+                    or row.get("token_id")
+                    or row.get("tokenId")
+                    or row.get("asset_id")
+                )
+                if row_token_id != token_id:
+                    continue
+
+                event_ts = page_event_ts
+                price = _parse_optional_decimal(row.get("price"), quant=_PRICE_QUANT)
+                size = _parse_optional_decimal(
+                    row.get("size") or row.get("amount"),
+                    quant=_SIZE_QUANT,
+                )
+                if event_ts is None or price is None or size is None:
+                    continue
+                if since_bound is not None and event_ts < since_bound:
+                    continue
+
+                side = _normalize_side(row.get("side"))
+                seq = _parse_optional_int(row.get("seq") or row.get("sequence"))
                 trade_hash = build_trade_hash(
                     token_id=token_id,
                     event_ts=event_ts,
@@ -170,18 +316,31 @@ class ClobRestClient:
                     side=side,
                     extra_fields=_trade_identity_extra_fields(row),
                 )
+                dedupe_key = (token_id, event_ts, seq or 0, trade_hash)
+                if dedupe_key in seen_keys:
+                    continue
+                seen_keys.add(dedupe_key)
 
-            output.append(
-                TradeRecord(
-                    token_id=token_id,
-                    event_ts=event_ts,
-                    price=price,
-                    size=size,
-                    side=side,
-                    trade_hash=trade_hash,
-                    seq=seq,
+                output.append(
+                    TradeRecord(
+                        token_id=token_id,
+                        event_ts=event_ts,
+                        price=price,
+                        size=size,
+                        side=side,
+                        trade_hash=trade_hash,
+                        seq=seq,
+                    )
                 )
-            )
+
+            if len(rows) < page_size:
+                break
+            if (
+                since_bound is not None
+                and oldest_page_ts is not None
+                and oldest_page_ts < since_bound
+            ):
+                break
 
         return output
 
@@ -197,7 +356,7 @@ class ClobRestClient:
         if since_bound is not None:
             params["since"] = since_bound.isoformat()
 
-        payload = self._request_json("/candles", params)
+        payload = self._request_json("/candles", params, private=False)
         rows = _extract_rows(payload, preferred_key="candles")
 
         output: list[CandleRecord] = []
@@ -243,15 +402,39 @@ class ClobRestClient:
 
         return output
 
-    def _request_json(self, path: str, params: Mapping[str, str]) -> Any:
-        url = f"{self.config.base_url.rstrip('/')}/{path.lstrip('/')}"
+    def _request_json(
+        self,
+        path: str,
+        params: Mapping[str, str],
+        *,
+        private: bool,
+        sign_with_query: bool = True,
+        base_url_override: str | None = None,
+    ) -> Any:
+        base_url = (
+            _optional_text(base_url_override)
+            or self.config.base_url
+        )
+        url = f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+        sorted_params = sorted(params.items())
+        per_request_headers = (
+            self._build_l2_headers(
+                path,
+                "GET",
+                sorted_params,
+                include_query=sign_with_query,
+            )
+            if private
+            else {}
+        )
 
         for attempt in range(self.config.max_retries + 1):
             self._wait_for_rate_limit()
             try:
                 response = self.session.get(
                     url,
-                    params=dict(params),
+                    params=sorted_params,
+                    headers=per_request_headers if per_request_headers else None,
                     timeout=self.config.timeout_seconds,
                 )
             except requests.RequestException as exc:
@@ -280,8 +463,10 @@ class ClobRestClient:
             try:
                 response.raise_for_status()
             except requests.HTTPError as exc:
-                raise ClobClientError(
-                    f"CLOB request failed with status={response.status_code} for {path}"
+                raise ClobHttpError(
+                    status_code=response.status_code,
+                    path=path,
+                    body_snippet=_response_body_snippet(response),
                 ) from exc
 
             try:
@@ -290,6 +475,37 @@ class ClobRestClient:
                 raise ClobClientError(f"CLOB response is not valid JSON for {path}") from exc
 
         raise ClobClientError(f"CLOB request exhausted retries for {path}")
+
+    def _build_l2_headers(
+        self,
+        path: str,
+        method: str,
+        sorted_params: list[tuple[str, str]],
+        *,
+        include_query: bool,
+    ) -> dict[str, str]:
+        api_key = _optional_text(self.config.api_key)
+        api_secret = _optional_text(self.config.api_secret)
+        api_passphrase = _optional_text(self.config.api_passphrase)
+        poly_address = _optional_text(self.config.poly_address)
+        if api_key is None or api_secret is None or api_passphrase is None or poly_address is None:
+            return {}
+
+        timestamp = str(int(self.epoch_seconds_fn()))
+        request_path = _build_request_path(path, sorted_params, include_query=include_query)
+        signature = _build_l2_hmac_signature(
+            secret=api_secret,
+            timestamp=timestamp,
+            method=method,
+            request_path=request_path,
+        )
+        return {
+            "POLY_ADDRESS": poly_address,
+            "POLY_API_KEY": api_key,
+            "POLY_PASSPHRASE": api_passphrase,
+            "POLY_SIGNATURE": signature,
+            "POLY_TIMESTAMP": timestamp,
+        }
 
     def _wait_for_rate_limit(self) -> None:
         if self.config.rate_limit_rps <= 0:
@@ -531,3 +747,53 @@ def _retry_delay_seconds(
     exponential = base_backoff_seconds * (2**attempt)
     deterministic_jitter = min(0.05 * (attempt + 1), 0.25)
     return float(exponential + deterministic_jitter)
+
+
+def _build_data_trades_params(
+    token_id: str,
+    *,
+    next_cursor: str,
+    since_ts: datetime | None,
+) -> dict[str, str]:
+    params: dict[str, str] = {"asset_id": token_id, "next_cursor": next_cursor}
+    if since_ts is not None:
+        params["after"] = str(int(since_ts.timestamp()))
+    return params
+
+
+def _build_request_path(
+    path: str,
+    sorted_params: list[tuple[str, str]],
+    *,
+    include_query: bool,
+) -> str:
+    normalized_path = f"/{path.lstrip('/')}"
+    if not include_query or not sorted_params:
+        return normalized_path
+    return f"{normalized_path}?{urlencode(sorted_params)}"
+
+
+def _build_l2_hmac_signature(
+    *,
+    secret: str,
+    timestamp: str,
+    method: str,
+    request_path: str,
+) -> str:
+    message = f"{timestamp}{method.upper()}{request_path}"
+    digest = hmac.new(
+        base64.urlsafe_b64decode(secret),
+        message.encode("utf-8"),
+        hashlib.sha256,
+    ).digest()
+    return base64.urlsafe_b64encode(digest).decode("utf-8")
+
+
+def _response_body_snippet(response: requests.Response) -> str | None:
+    text = response.text
+    if not text:
+        return None
+    compact = " ".join(text.split())
+    if not compact:
+        return None
+    return compact[:180]

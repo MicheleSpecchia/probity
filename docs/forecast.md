@@ -346,6 +346,37 @@ python -m pmx.jobs.monitor_from_pipeline `
   - `monitoring_inputs_hash`
   - `monitoring_payload_hash`
 
+## E2E Smoke Runner v1 (Milestone 12)
+- Smoke runner is artifact-only and offline:
+  - input: forecast artifact JSON (fixture by default)
+  - output: `artifacts/smoke/<run_id>.json`
+  - validates each stage artifact immediately after generation.
+- Run:
+```powershell
+python -m pmx.jobs.smoke_pipeline_artifact_only `
+  --forecast-artifact tests/fixtures/forecast/forecast_artifact_sample.json `
+  --artifacts-root artifacts `
+  --nonce smoke
+```
+- Strict mode (`exit != 0` only on `overall_status=FAIL`):
+```powershell
+python -m pmx.jobs.smoke_pipeline_artifact_only `
+  --forecast-artifact tests/fixtures/forecast/forecast_artifact_sample.json `
+  --artifacts-root artifacts `
+  --nonce smoke `
+  --strict
+```
+- Summary includes:
+  - input path/hash
+  - per-step artifact paths + payload/policy hashes
+  - `overall_status` (`OK` / `WARN` / `FAIL`)
+  - deterministic counts of flags/warnings and step outcomes
+  - reproducibility hashes:
+    - `smoke_policy_hash`
+    - `smoke_outputs_hash`
+    - `smoke_payload_hash`
+- See `docs/runbook.md` for operational instructions and replay workflow.
+
 ## Determinism policy
 - Canonical JSON hashing is centralized in `pmx.forecast.canonical`:
   - sorted object keys

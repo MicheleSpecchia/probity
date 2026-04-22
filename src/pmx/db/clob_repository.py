@@ -19,23 +19,72 @@ class TokenIngestStats:
     candles_upserted: int = 0
 
 
+@dataclass(frozen=True, slots=True)
+class TokenIngestRef:
+    token_id: str
+    condition_id: str | None
+
+
 class ClobRepository:
     def __init__(self, connection: psycopg.Connection) -> None:
         self.connection = connection
 
-    def list_token_ids(self, *, max_tokens: int | None) -> list[str]:
+    def list_token_ingest_refs(self, *, max_tokens: int | None) -> list[TokenIngestRef]:
+        base_query = """
+            SELECT token_id, condition_id
+            FROM (
+                SELECT DISTINCT ON (mt.token_id)
+                    mt.token_id,
+                    COALESCE(
+                        NULLIF(m.rule_parse_json->'audit'->'gamma_raw'->>'conditionId', ''),
+                        NULLIF(m.rule_parse_json->'audit'->'gamma_raw'->>'condition_id', ''),
+                        CASE
+                            WHEN mt.market_id LIKE '0x%' THEN mt.market_id
+                            ELSE NULL
+                        END
+                    ) AS condition_id,
+                    COALESCE(m.updated_ts, m.created_ts) AS sort_ts
+                FROM market_tokens mt
+                JOIN markets m ON m.market_id = mt.market_id
+                WHERE lower(COALESCE(m.status, '')) = 'active'
+                  AND lower(
+                    COALESCE(m.rule_parse_json->'audit'->'gamma_raw'->>'active', 'true')
+                  ) = 'true'
+                  AND lower(
+                    COALESCE(m.rule_parse_json->'audit'->'gamma_raw'->>'closed', 'false')
+                  ) != 'true'
+                  AND lower(
+                    COALESCE(m.rule_parse_json->'audit'->'gamma_raw'->>'enableOrderBook', 'true')
+                  ) = 'true'
+                  AND lower(
+                    COALESCE(m.rule_parse_json->'audit'->'gamma_raw'->>'acceptingOrders', 'true')
+                  ) = 'true'
+                ORDER BY mt.token_id, COALESCE(m.updated_ts, m.created_ts) DESC NULLS LAST
+            ) ranked_tokens
+            ORDER BY sort_ts DESC NULLS LAST, token_id ASC
+        """
         if max_tokens is None:
-            query = "SELECT token_id FROM market_tokens ORDER BY token_id ASC"
+            query = base_query
             params: Sequence[object] = ()
         else:
-            query = "SELECT token_id FROM market_tokens ORDER BY token_id ASC LIMIT %s"
+            query = f"{base_query} LIMIT %s"
             params = (max_tokens,)
 
         with self.connection.cursor() as cursor:
             cursor.execute(query, params)
             rows = cursor.fetchall()
 
-        return [str(row[0]) for row in rows]
+        return [
+            TokenIngestRef(
+                token_id=str(row[0]),
+                condition_id=str(row[1]) if row[1] is not None else None,
+            )
+            for row in rows
+        ]
+
+    def list_token_ids(self, *, max_tokens: int | None) -> list[str]:
+        refs = self.list_token_ingest_refs(max_tokens=max_tokens)
+        return [ref.token_id for ref in refs]
 
     def insert_run(
         self,

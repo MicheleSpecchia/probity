@@ -186,6 +186,9 @@ def run_clob_wss_listener(
                 timeout_seconds=config.clob_timeout_seconds,
                 rate_limit_rps=config.clob_rate_limit_rps,
                 api_key=os.getenv("CLOB_API_KEY"),
+                api_secret=os.getenv("CLOB_API_SECRET"),
+                api_passphrase=os.getenv("CLOB_API_PASSPHRASE"),
+                poly_address=os.getenv("POLY_ADDRESS"),
                 orderbook_depth=config.clob_orderbook_depth,
             )
         )

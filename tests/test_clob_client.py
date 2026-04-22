@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -37,8 +40,21 @@ class _FakeSession:
         self.calls: list[dict[str, Any]] = []
         self.headers: dict[str, str] = {}
 
-    def get(self, url: str, params: dict[str, Any], timeout: int) -> _FakeResponse:
-        self.calls.append({"url": url, "params": dict(params), "timeout": timeout})
+    def get(
+        self,
+        url: str,
+        params: Any,
+        timeout: int,
+        headers: dict[str, str] | None = None,
+    ) -> _FakeResponse:
+        self.calls.append(
+            {
+                "url": url,
+                "params": dict(params),
+                "timeout": timeout,
+                "headers": dict(headers or {}),
+            }
+        )
         if not self.responses:
             raise RuntimeError("No fake response available")
         return self.responses.pop(0)
@@ -91,7 +107,11 @@ def test_get_trades_normalizes_fields() -> None:
     assert trade.seq == 7
     assert str(trade.price) == "0.50000000"
     assert str(trade.size) == "10.00000000"
-    assert session.calls[0]["params"]["since"] == "2025-12-31T00:00:00+00:00"
+    assert session.calls[0]["params"]["asset_id"] == "token-1"
+    assert session.calls[0]["params"]["next_cursor"] == "MA=="
+    assert session.calls[0]["params"]["after"] == str(
+        int(datetime(2025, 12, 31, tzinfo=UTC).timestamp())
+    )
 
 
 def test_get_candles_parses_ohlcv() -> None:
@@ -145,7 +165,11 @@ def test_get_trades_since_ts_is_inclusive() -> None:
     )
 
     assert [trade.trade_hash for trade in trades] == ["trade-t1"]
-    assert session.calls[0]["params"]["since"] == "2026-01-01T00:00:01+00:00"
+    assert session.calls[0]["params"]["asset_id"] == "token-1"
+    assert session.calls[0]["params"]["next_cursor"] == "MA=="
+    assert session.calls[0]["params"]["after"] == str(
+        int(datetime(2026, 1, 1, 0, 0, 1, tzinfo=UTC).timestamp())
+    )
 
 
 def test_get_candles_since_ts_is_inclusive() -> None:
@@ -321,3 +345,139 @@ def test_client_retries_on_429_and_uses_retry_after() -> None:
 
     assert snapshot is not None
     assert slept == [0.0]
+
+
+def test_get_trades_adds_l2_headers_deterministically_when_credentials_present() -> None:
+    session = _FakeSession(
+        [
+            _FakeResponse(
+                status_code=200,
+                payload=_load_fixture("trades.json"),
+            )
+        ]
+    )
+    raw_secret = b"test-secret-key-material"
+    encoded_secret = base64.urlsafe_b64encode(raw_secret).decode("utf-8")
+    fixed_ts = 1_700_000_000
+    since_ts = datetime(2025, 12, 31, tzinfo=UTC)
+    client = ClobRestClient(
+        ClobClientConfig(
+            base_url="https://example.clob",
+            api_key="api-key",
+            api_secret=encoded_secret,
+            api_passphrase="passphrase",
+            poly_address="0xabc",
+        ),
+        session=session,
+        epoch_seconds_fn=lambda: fixed_ts,
+    )
+
+    _ = client.get_trades("token-1", since_ts=since_ts)
+
+    request_headers = session.calls[0]["headers"]
+    assert request_headers["POLY_API_KEY"] == "api-key"
+    assert request_headers["POLY_PASSPHRASE"] == "passphrase"
+    assert request_headers["POLY_ADDRESS"] == "0xabc"
+    assert request_headers["POLY_TIMESTAMP"] == str(fixed_ts)
+
+    request_path = "/data/trades"
+    message = f"{fixed_ts}GET{request_path}".encode()
+    expected_signature = base64.urlsafe_b64encode(
+        hmac.new(raw_secret, message, hashlib.sha256).digest()
+    ).decode("utf-8")
+    assert request_headers["POLY_SIGNATURE"] == expected_signature
+
+
+def test_get_trades_skips_l2_headers_when_credentials_are_incomplete() -> None:
+    session = _FakeSession(
+        [
+            _FakeResponse(
+                status_code=200,
+                payload=_load_fixture("trades.json"),
+            )
+        ]
+    )
+    client = ClobRestClient(
+        ClobClientConfig(
+            base_url="https://example.clob",
+            api_key="api-key-only",
+        ),
+        session=session,
+        epoch_seconds_fn=lambda: 1_700_000_000,
+    )
+
+    _ = client.get_trades("token-1", since_ts=None)
+
+    request_headers = session.calls[0]["headers"]
+    assert "POLY_API_KEY" not in request_headers
+    assert "POLY_SIGNATURE" not in request_headers
+
+
+def test_get_market_trades_filters_rows_and_uses_data_api_url() -> None:
+    session = _FakeSession(
+        [
+            _FakeResponse(
+                status_code=200,
+                payload=[
+                    {
+                        "asset": "token-1",
+                        "timestamp": 1_773_309_803,
+                        "price": 0.55,
+                        "size": 5.0,
+                        "side": "BUY",
+                        "transactionHash": "0xaaa",
+                    },
+                    {
+                        "asset": "token-2",
+                        "timestamp": 1_773_309_804,
+                        "price": 0.44,
+                        "size": 8.0,
+                        "side": "SELL",
+                        "transactionHash": "0xbbb",
+                    },
+                ],
+            ),
+            _FakeResponse(status_code=200, payload=[]),
+        ]
+    )
+    client = ClobRestClient(
+        ClobClientConfig(
+            base_url="https://example.clob",
+            data_api_base_url="https://example.data-api",
+            data_api_page_size=2,
+            data_api_max_pages=2,
+        ),
+        session=session,
+    )
+
+    trades = client.get_market_trades(
+        "0xcondition-1",
+        token_id="token-1",
+        since_ts=datetime(2026, 3, 10, tzinfo=UTC),
+    )
+
+    assert len(trades) == 1
+    assert trades[0].token_id == "token-1"
+    assert trades[0].side == "buy"
+    assert trades[0].trade_hash is not None
+    assert session.calls[0]["url"] == "https://example.data-api/trades"
+    assert session.calls[0]["params"]["market"] == "0xcondition-1"
+    assert session.calls[0]["params"]["limit"] == "2"
+    assert session.calls[0]["params"]["offset"] == "0"
+    assert session.calls[1]["params"]["offset"] == "2"
+
+
+def test_get_market_trades_skips_invalid_condition_id_without_requests() -> None:
+    session = _FakeSession([_FakeResponse(status_code=200, payload=[])])
+    client = ClobRestClient(
+        ClobClientConfig(
+            base_url="https://example.clob",
+            data_api_base_url="https://example.data-api",
+        ),
+        session=session,
+    )
+
+    trades = client.get_market_trades("not-a-condition-id", token_id="token-1", since_ts=None)
+
+    assert trades == []
+    assert session.calls == []

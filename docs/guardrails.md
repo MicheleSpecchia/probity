@@ -530,3 +530,19 @@ Each forecast output is expected to include:
     - `monitoring_policy_hash`
     - `monitoring_inputs_hash`
     - `monitoring_payload_hash`.
+
+## Milestone 12 smoke guardrails
+- A single offline smoke runner must validate artifact contracts end-to-end:
+  - forecast -> decision -> trade_plan -> execution -> portfolio
+    -> performance -> risk -> audit_bundle -> monitoring.
+- Smoke run summary contract:
+  - `artifacts/smoke/<run_id>.json`
+  - includes deterministic per-step statuses, paths, payload hashes, and error tuples.
+- Determinism requirement:
+  - same forecast artifact content + same params + same nonce
+    => same stage payload hashes and same smoke payload hash.
+- Validation requirement:
+  - each generated artifact must be validated with its `validate_*_artifact` function.
+  - failures must be explicit with deterministic `{step, code, path, reason}`.
+- `--strict` mode requirement:
+  - exit non-zero only when `overall_status == FAIL`.
