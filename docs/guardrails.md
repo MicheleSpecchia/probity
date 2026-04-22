@@ -24,6 +24,8 @@
 - Catalog ingestion note:
   - Gamma catalog refresh stores ingestion metadata (`audit.ingested_at`)
     at write time for auditability.
+  - Gamma outcomes refresh persists deterministic winner inference in
+    `market_outcomes` (`resolved`, `outcome`, `resolved_ts`, `resolver_source`).
   - News ingestion stores `published_at` and run-level `ingested_at`
     on every `articles` row (no null timestamps).
   - News raw evidence is persisted in `articles.raw.gdelt` and

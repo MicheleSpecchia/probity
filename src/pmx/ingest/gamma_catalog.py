@@ -4,6 +4,7 @@ import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 
@@ -28,6 +29,9 @@ class MarketTokenRecord:
     market_id: str
     outcome: str
     token_id: str
+
+
+OUTCOME_PRICE_RESOLUTION_THRESHOLD = Decimal("0.99")
 
 
 def parse_rule_text(rule_text: str | None) -> tuple[bool, dict[str, Any]]:
@@ -175,6 +179,25 @@ def extract_market_tokens(payload: Mapping[str, Any], *, market_id: str) -> list
     )
 
 
+def infer_market_outcome(
+    market_payload: Mapping[str, Any],
+) -> tuple[bool, str | None, datetime | None, str]:
+    explicit_outcome, explicit_source = _infer_explicit_outcome(market_payload)
+    if explicit_outcome is not None:
+        return True, explicit_outcome, _infer_resolved_timestamp(market_payload), explicit_source
+
+    inferred_outcome = _infer_outcome_from_prices(market_payload)
+    if inferred_outcome is not None:
+        return (
+            True,
+            inferred_outcome,
+            _infer_resolved_timestamp(market_payload),
+            "inferred:outcomePrices_unique_max_ge_0.99",
+        )
+
+    return False, None, None, "unresolved"
+
+
 def market_sort_key(payload: Mapping[str, Any]) -> tuple[str, str]:
     updated = _parse_optional_datetime(
         payload.get("updated_ts")
@@ -213,6 +236,96 @@ def _as_text(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text if text else None
+
+
+def _infer_explicit_outcome(payload: Mapping[str, Any]) -> tuple[str | None, str]:
+    candidates = (
+        "winningOutcome",
+        "winning_outcome",
+        "resolvedOutcome",
+        "resolved_outcome",
+        "outcome",
+    )
+    for key in candidates:
+        value = payload.get(key)
+        outcome = _coerce_explicit_outcome_value(value, payload)
+        if outcome is not None:
+            return outcome, f"explicit:{key}"
+    return None, "unresolved"
+
+
+def _coerce_explicit_outcome_value(value: Any, payload: Mapping[str, Any]) -> str | None:
+    outcomes = _coerce_json_list(payload.get("outcomes"))
+    if isinstance(value, int) and outcomes is not None and 0 <= value < len(outcomes):
+        return _as_text(outcomes[value])
+
+    text = _as_text(value)
+    if text is None:
+        return None
+    if outcomes is None:
+        return text
+
+    normalized_text = _normalize_outcome_label(text)
+    for candidate in outcomes:
+        candidate_text = _as_text(candidate)
+        if candidate_text is None:
+            continue
+        if _normalize_outcome_label(candidate_text) == normalized_text:
+            return candidate_text
+    return text
+
+
+def _infer_outcome_from_prices(payload: Mapping[str, Any]) -> str | None:
+    outcomes = _coerce_json_list(payload.get("outcomes"))
+    outcome_prices = _coerce_json_list(payload.get("outcomePrices"))
+    if outcomes is None or outcome_prices is None:
+        return None
+
+    pair_count = min(len(outcomes), len(outcome_prices))
+    if pair_count <= 0:
+        return None
+
+    scored: list[tuple[int, Decimal, str]] = []
+    for index in range(pair_count):
+        outcome = _as_text(outcomes[index])
+        price = _parse_decimal_probability(outcome_prices[index])
+        if outcome is None or price is None:
+            continue
+        scored.append((index, price, outcome))
+
+    if not scored:
+        return None
+
+    max_price = max(item[1] for item in scored)
+    if max_price < OUTCOME_PRICE_RESOLUTION_THRESHOLD:
+        return None
+
+    winners = [item for item in scored if item[1] == max_price]
+    if len(winners) != 1:
+        return None
+    return winners[0][2]
+
+
+def _parse_decimal_probability(value: Any) -> Decimal | None:
+    try:
+        parsed = Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    if parsed < Decimal("0") or parsed > Decimal("1"):
+        return None
+    return parsed
+
+
+def _infer_resolved_timestamp(payload: Mapping[str, Any]) -> datetime | None:
+    for field in ("resolvedAt", "closedTime", "endDateIso", "updatedAt"):
+        parsed = _parse_optional_datetime(payload.get(field))
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _normalize_outcome_label(value: str) -> str:
+    return " ".join(value.strip().lower().split())
 
 
 def _coerce_json_list(value: Any) -> list[Any] | None:

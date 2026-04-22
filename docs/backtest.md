@@ -9,6 +9,8 @@
 - For every decision timestamp `t`, examples are built only from rows satisfying:
   - `event_ts <= t`
   - `ingested_at <= t + epsilon`
+- Resolved labels are read from `market_outcomes`, populated deterministically by
+  `gamma_outcomes_refresh`; labels are valid only when `t < resolved_ts`.
 - Feature rows are selected from `feature_snapshots` with:
   - `asof_ts <= t`
   - deterministic latest tie-break (`asof_ts DESC`, id DESC)
